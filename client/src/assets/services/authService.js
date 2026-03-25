@@ -1,26 +1,29 @@
-const API = "http://localhost:5000/api/auth";
+import axios from 'axios';
+
+const API = '/api/auth';
+
+const api = axios.create({
+  withCredentials: true
+});
 
 export const registerUser = async (data) => {
-  const res = await fetch(`${API}/register`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(data)
-  });
-
-  return res.json();
+  const res = await api.post(`${API}/register`, data);
+  return res.data;
 };
 
 export const loginUser = async (data) => {
-  const res = await fetch(`${API}/login`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(data)
-  });
-
-  return res.json();
+  const res = await api.post(`${API}/login`, data);
+  return res.data;
 };
+
+export const logoutUser = async () => {
+  const res = await api.post(`${API}/logout`);
+  return res.data;
+};
+
+export const getMe = async () => {
+  const res = await api.get(`${API}/me`);
+  return res.data;
+};
+
+export default api;
