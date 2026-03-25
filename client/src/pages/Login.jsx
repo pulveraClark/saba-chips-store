@@ -16,7 +16,8 @@ function Login() {
     try {
       const res = await loginUser(form);
       if (res.message === "Login successful") {
-        navigate("/home");
+        // 🚀 FIXED: Instant redirect + navbar refresh
+        window.location.href = "/home";
       } else {
         setError(res.message);
       }
@@ -27,6 +28,7 @@ function Login() {
     }
   };
 
+  // ... YOUR EXISTING RETURN/JSX STAYS EXACTLY SAME ...
   return (
     <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-green-50 to-yellow-50">
       <div className="bg-white p-8 rounded-2xl shadow-2xl w-96 max-w-md">
