@@ -1,90 +1,167 @@
-import { useRef } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { addToCart } from "../assets/services/cartService.js";
+import { useCart } from "../context/CartContext.jsx";
+import { useProducts } from "../context/ProductContext.jsx";
 
 function Home() {
-  const productsRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [cartMessage, setCartMessage] = useState("");
+  const { refreshCartCount } = useCart();
+  const { products, refreshProducts } = useProducts();
 
-  const products = [
-    { id: 1, name: "Saba Chips Classic", price: 50, image: "🍟", desc: "Original flavor" },
-    { id: 2, name: "Saba Chips BBQ", price: 55, image: "🔥", desc: "Smoky BBQ" },
-    { id: 3, name: "Saba Chips Sweet", price: 60, image: "🍯", desc: "Sweet & crunchy" },
-    { id: 4, name: "Saba Chips Spicy", price: 65, image: "🌶️", desc: "Fire hot!" },
-  ];
+  useEffect(() => {
+    loadProducts();
+  }, []);
 
-  const scrollToProducts = () => {
-    productsRef.current?.scrollIntoView({ 
-      behavior: 'smooth', 
-      block: 'start' 
-    });
+  const loadProducts = async () => {
+    try {
+      await refreshProducts();
+    } catch (err) {
+      console.error("Products fetch failed:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAddToCart = (product) => {
-    // 🛒 Simulate cart (future API)
-    const cartItem = `${product.name} - ₱${product.price}`;
-    alert(`${cartItem} added to cart! 🛒`);
+  const handleAddToCart = async (productId) => {
+    try {
+      await addToCart(productId);
+      await refreshCartCount();
+      await refreshProducts();
+
+      const selectedProduct = products.find(
+        (p) => p.id === productId || p._id === productId
+      );
+
+      setCartMessage(`${selectedProduct?.name || "Product"} added to cart!`);
+      setTimeout(() => setCartMessage(""), 3000);
+    } catch (err) {
+      setCartMessage(
+        err?.response?.data?.message || "Please login to add to cart"
+      );
+      setTimeout(() => setCartMessage(""), 3000);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50">
+        <div className="text-2xl text-gray-600 animate-pulse">
+          Loading products...
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-green-500 to-green-600 text-white py-24 text-center px-6">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-7xl font-bold mb-8 leading-tight">
+    <div className="min-h-screen">
+      <section className="bg-gradient-to-br from-sabaGreen to-emerald-600 pt-32 pb-24 text-white text-center">
+        <div className="max-w-4xl mx-auto px-6">
+          <h1 className="text-5xl md:text-7xl font-black mb-6 drop-shadow-2xl">
             Saba Chips
           </h1>
-          <p className="text-xl md:text-2xl mb-12 max-w-2xl mx-auto leading-relaxed opacity-95">
-            Crispy, delicious banana chips made fresh daily with love ❤️
+          <p className="text-xl md:text-2xl mb-12 max-w-2xl mx-auto opacity-95 drop-shadow-lg">
+            Live products ({products.length} available)
           </p>
-          <button 
-            onClick={scrollToProducts}
-            className="bg-yellow-400 text-green-900 px-10 py-5 rounded-full text-xl font-bold hover:bg-yellow-500 shadow-2xl transform hover:scale-105 transition-all duration-300 mx-auto block"
+          <Link
+            to="/cart"
+            className="btn-primary text-lg px-10 py-4 shadow-xl inline-block"
           >
-            Shop Now ↓
-          </button>
+            View Cart
+          </Link>
         </div>
       </section>
 
-      {/* Products Section */}
-      <section ref={productsRef} className="px-6 py-20 max-w-7xl mx-auto">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl md:text-5xl font-bold text-gray-800 mb-6">
-            Our Delicious Chips
-          </h2>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Made from the freshest bananas, perfectly crispy every time
-          </p>
-        </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {products.map((product) => (
-            <div
-              key={product.id}
-              className="group bg-white rounded-3xl shadow-lg hover:shadow-2xl p-8 hover:-translate-y-4 transition-all duration-500 border border-gray-100 overflow-hidden hover:border-green-200"
-            >
-              {/* Product Image */}
-              <div className="text-6xl mb-8 text-center p-6 bg-gradient-to-br from-green-50 to-yellow-50 rounded-2xl group-hover:scale-110 transition-transform duration-300">
-                {product.image}
-              </div>
-              
-              {/* Product Info */}
-              <div className="text-center">
-                <h3 className="text-2xl font-bold text-gray-800 mb-4 group-hover:text-green-600 transition-colors duration-300">
-                  {product.name}
-                </h3>
-                <p className="text-gray-600 mb-8 leading-relaxed">{product.desc}</p>
-                <div className="text-4xl font-bold text-green-600 mb-10">
-                  ₱{product.price}
-                </div>
-                
-                {/* Add to Cart */}
-                <button
-                  onClick={() => handleAddToCart(product)}
-                  className="w-full bg-gradient-to-r from-yellow-400 to-yellow-500 text-green-900 py-5 rounded-2xl font-bold text-xl hover:from-yellow-500 hover:to-yellow-600 shadow-xl transform hover:scale-105 group-hover:shadow-2xl transition-all duration-300"
-                >
-                  Add to Cart 🛒
-                </button>
-              </div>
+      <section className="py-24 bg-white">
+        <div className="max-w-6xl mx-auto px-6">
+          {cartMessage && (
+            <div className="max-w-md mx-auto mb-12 p-4 bg-green-100 border border-green-300 rounded-2xl text-green-800 font-semibold text-center shadow-lg animate-pulse">
+              {cartMessage}
             </div>
-          ))}
+          )}
+
+          <div className="text-center mb-20">
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mb-6">
+              Products ({products.length})
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {products.map((product) => {
+              const productId = product.id || product._id;
+
+              return (
+                <div
+                  key={productId}
+                  className="group cursor-pointer hover:shadow-xl transition-all duration-500 hover:-translate-y-2"
+                >
+                  <div className="bg-white rounded-3xl p-8 shadow-lg border border-gray-100 hover:border-sabaGreen/30">
+                    <div className="text-6xl mb-8 text-center p-6 bg-gray-50 rounded-2xl group-hover:bg-sabaGreen/5">
+                      {product.image ? (
+                        <img
+                          src={`http://localhost:5000${product.image}`}
+                          alt={product.name}
+                          className="w-full h-32 object-cover rounded-xl"
+                        />
+                      ) : (
+                        "🍟"
+                      )}
+                    </div>
+
+                    <h3 className="text-2xl font-bold text-gray-900 mb-4 group-hover:text-sabaGreen">
+                      {product.name}
+                    </h3>
+
+                    <p className="text-gray-600 mb-8">
+                      {product.description || "Delicious saba chips"}
+                    </p>
+
+                    <div className="text-3xl font-black text-sabaGreen mb-4">
+                      ₱{product.price}
+                    </div>
+
+                    <div
+                      className={`text-sm font-semibold mb-6 ${
+                        product.stock <= 0
+                          ? "text-red-600"
+                          : product.stock <= 5
+                          ? "text-yellow-600"
+                          : "text-green-600"
+                      }`}
+                    >
+                      {product.stock <= 0
+                        ? "Out of Stock"
+                        : product.stock <= 5
+                        ? `Low Stock: ${product.stock}`
+                        : `In Stock: ${product.stock}`}
+                    </div>
+
+                    <button
+                      onClick={() => handleAddToCart(productId)}
+                      className={`w-full text-lg ${
+                        product.stock <= 0
+                          ? "bg-gray-300 text-gray-500 cursor-not-allowed py-3 rounded-xl"
+                          : "btn-primary"
+                      }`}
+                      disabled={product.stock <= 0}
+                    >
+                      {product.stock <= 0 ? "Out of Stock" : "Add to Cart"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {products.length === 0 && (
+            <div className="text-center py-24 col-span-full">
+              <div className="text-6xl mb-8">📦</div>
+              <h3 className="text-3xl font-bold text-gray-700 mb-4">
+                No products yet
+              </h3>
+            </div>
+          )}
         </div>
       </section>
     </div>
