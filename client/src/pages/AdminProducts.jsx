@@ -128,26 +128,39 @@ function AdminProducts() {
   };
 
   if (loading) {
-    return <div className="p-12 text-center">Loading products...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f8f2e8]">
+        <div className="text-2xl text-[#8b5e34] animate-pulse">
+          Loading products...
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 py-12">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-12">
+    <div className="min-h-screen bg-[#f8f2e8] py-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] rounded-[2rem] p-8 text-white shadow-xl mb-8">
           <Link
             to="/admin"
-            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
+            className="inline-block text-[#fff1df] hover:text-white mb-4"
           >
-            ← Back to Users
+            ← Back to Dashboard
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 text-center">
+          <h1 className="text-4xl md:text-5xl font-black mb-3">
             Product Management
           </h1>
+          <p className="text-[#fff1df] text-lg max-w-2xl">
+            Add, update, and manage your store products, stock, images, and descriptions.
+          </p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl p-8 mb-12">
-          <h2 className="text-2xl font-bold mb-6">Add New Product</h2>
+        {/* Add Product */}
+        <div className="bg-white rounded-3xl shadow-xl p-8 border border-[#ead7b8] mb-8">
+          <h2 className="text-2xl font-black text-[#8b5e34] mb-6">
+            Add New Product
+          </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <input
@@ -184,51 +197,45 @@ function AdminProducts() {
               placeholder="Description"
               value={newProduct.description}
               onChange={(e) =>
-                setNewProduct({
-                  ...newProduct,
-                  description: e.target.value,
-                })
+                setNewProduct({ ...newProduct, description: e.target.value })
               }
             />
 
             <input
               type="file"
               accept="image/*"
+              className="block w-full text-sm text-[#6d4c2f]"
               onChange={(e) =>
-                setNewProduct({
-                  ...newProduct,
-                  image: e.target.files[0],
-                })
+                setNewProduct({ ...newProduct, image: e.target.files[0] })
               }
             />
 
             <button
               onClick={handleCreate}
-              className="btn-primary col-span-full py-4 text-lg"
+              className="bg-[#8b5e34] text-white py-4 rounded-2xl font-semibold hover:bg-[#714a28] transition col-span-full"
             >
               + Add Product
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
-          <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 text-white">
-            <h2 className="text-2xl font-bold">
-              📦 Products ({products.length})
-            </h2>
+        {/* Product Table */}
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-[#ead7b8]">
+          <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] p-6 text-white">
+            <h2 className="text-3xl font-black">🛍️ Products</h2>
           </div>
 
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50">
+              <thead className="bg-[#fff7eb]">
                 <tr>
-                  <th className="px-6 py-4">ID</th>
-                  <th className="px-6 py-4">Image</th>
-                  <th className="px-6 py-4">Name</th>
-                  <th className="px-6 py-4">Price</th>
-                  <th className="px-6 py-4">Stock</th>
-                  <th className="px-6 py-4">Description</th>
-                  <th className="px-6 py-4 text-center">Actions</th>
+                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">ID</th>
+                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Image</th>
+                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Name</th>
+                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Price</th>
+                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Stock</th>
+                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Description</th>
+                  <th className="px-6 py-4 text-center text-[#8b5e34] font-bold">Actions</th>
                 </tr>
               </thead>
 
@@ -236,24 +243,24 @@ function AdminProducts() {
                 {products.map((product) => (
                   <tr
                     key={product.id}
-                    className={`border-b align-top ${
+                    className={`border-t border-[#f1e3ca] align-top ${
                       product.stock <= 0
                         ? "bg-red-50"
                         : product.stock <= 5
                         ? "bg-yellow-50"
-                        : ""
+                        : "hover:bg-[#fffaf2]"
                     }`}
                   >
-                    <td className="px-6 py-4">{product.id}</td>
+                    <td className="px-6 py-5">{product.id}</td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       {editingId === product.id ? (
                         <div className="space-y-2">
                           {editForm.existingImage && (
                             <img
                               src={`http://localhost:5000${editForm.existingImage}`}
                               alt={editForm.name}
-                              className="w-16 h-16 object-cover rounded-lg border"
+                              className="w-16 h-16 object-cover rounded-xl border border-[#ead7b8]"
                             />
                           )}
                           <input
@@ -271,66 +278,61 @@ function AdminProducts() {
                         <img
                           src={`http://localhost:5000${product.image}`}
                           alt={product.name}
-                          className="w-16 h-16 object-cover rounded-lg"
+                          className="w-16 h-16 object-cover rounded-xl border border-[#ead7b8]"
                         />
                       ) : (
-                        <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
-                          No image
+                        <div className="w-16 h-16 bg-[#f8f2e8] rounded-xl flex items-center justify-center text-[#8b5e34]">
+                          📦
                         </div>
                       )}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       {editingId === product.id ? (
                         <input
                           className="input-field"
                           value={editForm.name}
                           onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              name: e.target.value,
-                            })
+                            setEditForm({ ...editForm, name: e.target.value })
                           }
                         />
                       ) : (
-                        product.name
+                        <span className="font-semibold text-gray-900">
+                          {product.name}
+                        </span>
                       )}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       {editingId === product.id ? (
                         <input
                           className="input-field"
                           type="number"
                           value={editForm.price}
                           onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              price: e.target.value,
-                            })
+                            setEditForm({ ...editForm, price: e.target.value })
                           }
                         />
                       ) : (
-                        `₱${product.price}`
+                        <span className="font-semibold text-[#8b5e34]">
+                          ₱{product.price}
+                        </span>
                       )}
                     </td>
 
-                    <td className="px-6 py-4">
+                    <td className="px-6 py-5">
                       {editingId === product.id ? (
                         <input
                           className="input-field"
                           type="number"
                           value={editForm.stock}
                           onChange={(e) =>
-                            setEditForm({
-                              ...editForm,
-                              stock: e.target.value,
-                            })
+                            setEditForm({ ...editForm, stock: e.target.value })
                           }
                         />
                       ) : (
                         <span
-                          className={`font-semibold px-3 py-1 rounded-full text-sm ${
+                          className={`px-3 py-1 rounded-full text-sm font-semibold ${
                             product.stock <= 0
                               ? "bg-red-100 text-red-700"
                               : product.stock <= 5
@@ -347,7 +349,7 @@ function AdminProducts() {
                       )}
                     </td>
 
-                    <td className="px-6 py-4 max-w-xs">
+                    <td className="px-6 py-5 max-w-xs">
                       {editingId === product.id ? (
                         <textarea
                           className="input-field"
@@ -361,16 +363,19 @@ function AdminProducts() {
                           }
                         />
                       ) : (
-                        <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                        <p className="text-sm text-[#6d4c2f] whitespace-pre-wrap">
                           {product.description || "No description"}
                         </p>
                       )}
                     </td>
 
-                    <td className="px-6 py-4 text-center">
+                    <td className="px-6 py-5 text-center">
                       {editingId === product.id ? (
                         <div className="flex flex-col gap-2">
-                          <button onClick={handleUpdate} className="btn-primary">
+                          <button
+                            onClick={handleUpdate}
+                            className="bg-green-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-green-700 transition"
+                          >
                             Save
                           </button>
                           <button
@@ -385,7 +390,7 @@ function AdminProducts() {
                                 existingImage: "",
                               });
                             }}
-                            className="bg-gray-500 text-white px-4 py-2 rounded"
+                            className="bg-gray-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-gray-600 transition"
                           >
                             Cancel
                           </button>
@@ -394,13 +399,13 @@ function AdminProducts() {
                         <div className="flex flex-col gap-2">
                           <button
                             onClick={() => handleEdit(product)}
-                            className="bg-blue-500 text-white px-4 py-2 rounded"
+                            className="bg-[#8b5e34] text-white px-4 py-2 rounded-xl font-semibold hover:bg-[#714a28] transition"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => handleDelete(product.id)}
-                            className="bg-red-500 text-white px-4 py-2 rounded"
+                            className="bg-red-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-red-600 transition"
                           >
                             Delete
                           </button>
