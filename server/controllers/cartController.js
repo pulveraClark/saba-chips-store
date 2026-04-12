@@ -1,7 +1,9 @@
 const db = require("../config/db");
+const logActivity = require("../utils/logActivity");
 
 exports.addToCart = (req, res) => {
   const userId = req.session.userId;
+  const currentUser = req.session.user;
   const { productId, quantity = 1 } = req.body;
 
   db.query(
@@ -51,6 +53,15 @@ exports.addToCart = (req, res) => {
                 console.error("Add to cart failed:", err);
                 return res.status(500).json({ message: "Add to cart failed" });
               }
+
+              logActivity({
+                userId,
+                userName: currentUser?.name,
+                userEmail: currentUser?.email,
+                action: "Added to cart",
+                details: `${currentUser?.name || "User"} added ${product.name} x${quantity} to cart`,
+              });
+
               res.json({ message: "Added to cart successfully" });
             }
           );

@@ -10,7 +10,11 @@ import { useProducts } from "../context/ProductContext.jsx";
 function AdminProducts() {
   const { products, refreshProducts } = useProducts();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [page, setPage] = useState(1);
+
+  const PRODUCTS_PER_PAGE = 5;
 
   const [editForm, setEditForm] = useState({
     name: "",
@@ -33,13 +37,15 @@ function AdminProducts() {
     loadProducts();
   }, []);
 
-  const loadProducts = async () => {
+  const loadProducts = async (showRefresh = false) => {
     try {
+      if (showRefresh) setRefreshing(true);
       await refreshProducts();
     } catch (err) {
       alert("Failed to fetch products");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -127,6 +133,12 @@ function AdminProducts() {
     }
   };
 
+  const totalPages = Math.max(1, Math.ceil(products.length / PRODUCTS_PER_PAGE));
+  const paginatedProducts = products.slice(
+    (page - 1) * PRODUCTS_PER_PAGE,
+    page * PRODUCTS_PER_PAGE
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f2e8]">
@@ -140,23 +152,33 @@ function AdminProducts() {
   return (
     <div className="min-h-screen bg-[#f8f2e8] py-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] rounded-[2rem] p-8 text-white shadow-xl mb-8">
-          <Link
-            to="/admin"
-            className="inline-block text-[#fff1df] hover:text-white mb-4"
-          >
-            ← Back to Dashboard
-          </Link>
-          <h1 className="text-4xl md:text-5xl font-black mb-3">
-            Product Management
-          </h1>
-          <p className="text-[#fff1df] text-lg max-w-2xl">
-            Add, update, and manage your store products, stock, images, and descriptions.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Link
+                to="/admin"
+                className="inline-block text-[#fff1df] hover:text-white mb-4"
+              >
+                ← Back to Dashboard
+              </Link>
+              <h1 className="text-4xl md:text-5xl font-black mb-3">
+                Product Management
+              </h1>
+              <p className="text-[#fff1df] text-lg max-w-2xl">
+                Add, update, and manage your store products, stock, images, and descriptions.
+              </p>
+            </div>
+
+            <button
+              onClick={() => loadProducts(true)}
+              disabled={refreshing}
+              className="px-4 py-3 rounded-2xl bg-white text-[#8b5e34] font-bold hover:bg-[#f8f2e8] disabled:opacity-60"
+            >
+              {refreshing ? "↻..." : "↻"}
+            </button>
+          </div>
         </div>
 
-        {/* Add Product */}
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-[#ead7b8] mb-8">
           <h2 className="text-2xl font-black text-[#8b5e34] mb-6">
             Add New Product
@@ -219,7 +241,6 @@ function AdminProducts() {
           </div>
         </div>
 
-        {/* Product Table */}
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-[#ead7b8]">
           <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] p-6 text-white">
             <h2 className="text-3xl font-black">🛍️ Products</h2>
@@ -240,7 +261,7 @@ function AdminProducts() {
               </thead>
 
               <tbody>
-                {products.map((product) => (
+                {paginatedProducts.map((product) => (
                   <tr
                     key={product.id}
                     className={`border-t border-[#f1e3ca] align-top ${
@@ -416,6 +437,32 @@ function AdminProducts() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 border-t border-[#f1e3ca] bg-[#fffaf2]">
+            <p className="text-[#6d4c2f] font-medium">
+              Page {page} of {totalPages} • {products.length} total products
+            </p>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page === 1}
+                className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Prev
+              </button>
+
+              <button
+                onClick={() =>
+                  setPage((prev) => (prev < totalPages ? prev + 1 : prev))
+                }
+                disabled={page >= totalPages}
+                className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
           </div>
         </div>
       </div>

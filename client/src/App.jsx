@@ -9,6 +9,10 @@ import Cart from "./pages/Cart.jsx";
 import Checkout from "./pages/Checkout.jsx";
 import AdminProducts from "./pages/AdminProducts.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
+import AdminReports from "./pages/AdminReports.jsx";
+import AdminUsers from "./pages/AdminUsers.jsx";
 
 function App() {
   return (
@@ -18,6 +22,8 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/home" element={<Home />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/" element={<Login />} />
@@ -26,6 +32,8 @@ function App() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/admin-products" element={<AdminProducts />} />
           <Route path="/admin-orders" element={<AdminOrders />} />
+          <Route path="/admin-reports" element={<AdminReports />} />
+          <Route path="/admin-users" element={<AdminUsers />} />
         </Routes>
       </>
     </BrowserRouter>
