@@ -55,7 +55,7 @@ function Navbar() {
       <div className="max-w-6xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
           <Link
-            to="/home"
+            to={isAdmin ? "/admin" : "/home"}
             className="text-2xl font-bold text-gray-900 hover:text-green-600 transition-colors"
           >
             Saba Chips
@@ -116,7 +116,7 @@ function Navbar() {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 py-1 z-50">
+                  <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-2xl border border-gray-200 py-1 z-50">
                     {isAdmin ? (
                       <>
                         <Link
@@ -124,15 +124,23 @@ function Navbar() {
                           className="block px-6 py-3 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-t-lg font-semibold transition-colors border-l-4 border-blue-500"
                           onClick={() => setDropdownOpen(false)}
                         >
-                          👥 Manage Users
+                          🏠 Admin Hub
                         </Link>
 
                         <Link
-                          to="/admin-products"
-                          className="block px-6 py-3 text-purple-700 bg-purple-50 hover:bg-purple-100 font-semibold transition-colors border-l-4 border-purple-500"
+                          to="/admin-reports"
+                          className="block px-6 py-3 text-amber-700 bg-amber-50 hover:bg-amber-100 font-semibold transition-colors border-l-4 border-amber-500"
                           onClick={() => setDropdownOpen(false)}
                         >
-                          🛍️ Manage Products
+                          📊 Reports & Insights
+                        </Link>
+
+                        <Link
+                          to="/admin-users"
+                          className="block px-6 py-3 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 font-semibold transition-colors border-l-4 border-indigo-500"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          👥 Manage Users
                         </Link>
 
                         <Link
@@ -141,6 +149,14 @@ function Navbar() {
                           onClick={() => setDropdownOpen(false)}
                         >
                           📦 Manage Orders
+                        </Link>
+
+                        <Link
+                          to="/admin-products"
+                          className="block px-6 py-3 text-purple-700 bg-purple-50 hover:bg-purple-100 font-semibold transition-colors border-l-4 border-purple-500"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          🛍️ Manage Products
                         </Link>
                       </>
                     ) : (

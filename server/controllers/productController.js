@@ -1,8 +1,8 @@
 const db = require("../config/db");
 const fs = require("fs");
 const path = require("path");
+const logActivity = require("../utils/logActivity");
 
-// GET ALL
 exports.getAllProducts = (req, res) => {
   db.query(
     "SELECT * FROM products ORDER BY created_at DESC",
@@ -16,10 +16,10 @@ exports.getAllProducts = (req, res) => {
   );
 };
 
-// CREATE
 exports.createProduct = (req, res) => {
   const { name, price, description, stock } = req.body;
   const image = req.file ? `/uploads/${req.file.filename}` : null;
+  const currentUser = req.session.user;
 
   if (!name || !price) {
     return res.status(400).json({ message: "Name and price required" });
@@ -33,6 +33,14 @@ exports.createProduct = (req, res) => {
         console.error("Create product failed:", err);
         return res.status(500).json({ message: "Create failed" });
       }
+
+      logActivity({
+        userId: currentUser?.id,
+        userName: currentUser?.name,
+        userEmail: currentUser?.email,
+        action: "Product created",
+        details: `${currentUser?.name || "Admin"} created product: ${name}`,
+      });
 
       res.status(201).json({
         message: "Product created",
@@ -49,10 +57,10 @@ exports.createProduct = (req, res) => {
   );
 };
 
-// UPDATE
 exports.updateProduct = (req, res) => {
   const { id } = req.params;
   const { name, price, description, stock, image: existingImage } = req.body;
+  const currentUser = req.session.user;
 
   db.query("SELECT * FROM products WHERE id = ?", [id], (selectErr, rows) => {
     if (selectErr) {
@@ -84,7 +92,6 @@ exports.updateProduct = (req, res) => {
           return res.status(404).json({ message: "Product not found" });
         }
 
-        // delete old image if new image was uploaded
         if (
           req.file &&
           oldProduct.image &&
@@ -99,6 +106,14 @@ exports.updateProduct = (req, res) => {
             }
           });
         }
+
+        logActivity({
+          userId: currentUser?.id,
+          userName: currentUser?.name,
+          userEmail: currentUser?.email,
+          action: "Product updated",
+          details: `${currentUser?.name || "Admin"} updated product: ${name}`,
+        });
 
         res.json({
           message: "Product updated",
@@ -116,9 +131,9 @@ exports.updateProduct = (req, res) => {
   });
 };
 
-// DELETE
 exports.deleteProduct = (req, res) => {
   const { id } = req.params;
+  const currentUser = req.session.user;
 
   db.query("SELECT * FROM products WHERE id = ?", [id], (selectErr, rows) => {
     if (selectErr) {
@@ -151,6 +166,14 @@ exports.deleteProduct = (req, res) => {
           }
         });
       }
+
+      logActivity({
+        userId: currentUser?.id,
+        userName: currentUser?.name,
+        userEmail: currentUser?.email,
+        action: "Product deleted",
+        details: `${currentUser?.name || "Admin"} deleted product: ${product.name}`,
+      });
 
       res.json({ message: "Product deleted successfully" });
     });

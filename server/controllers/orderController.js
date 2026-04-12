@@ -1,7 +1,9 @@
 const db = require("../config/db");
+const logActivity = require("../utils/logActivity");
 
 exports.checkout = (req, res) => {
   const userId = req.session.userId;
+  const currentUser = req.session.user;
   const { address, phone, paymentMethod } = req.body;
 
   if (!userId) {
@@ -34,7 +36,6 @@ exports.checkout = (req, res) => {
         return res.status(400).json({ message: "Cart empty" });
       }
 
-      // Check stock before checkout
       const insufficientStockItem = cartItems.find(
         (item) => item.quantity > item.stock
       );
@@ -77,7 +78,6 @@ exports.checkout = (req, res) => {
                 return res.status(500).json({ message: "Order items failed" });
               }
 
-              // Deduct stock for each purchased item
               const stockUpdates = cartItems.map(
                 (item) =>
                   new Promise((resolve, reject) => {
@@ -108,6 +108,18 @@ exports.checkout = (req, res) => {
                       if (deleteErr) {
                         console.error("Cart clear failed:", deleteErr);
                       }
+
+                      const itemsText = cartItems
+                        .map((item) => `${item.name} x${item.quantity}`)
+                        .join(", ");
+
+                      logActivity({
+                        userId,
+                        userName: currentUser?.name,
+                        userEmail: currentUser?.email,
+                        action: "Checkout completed",
+                        details: `${currentUser?.name || "User"} placed Order #${orderId} with items: ${itemsText}`,
+                      });
 
                       res.json({
                         message: "Order placed successfully!",
@@ -185,17 +197,48 @@ exports.getAllOrders = (req, res) => {
         o.address,
         o.phone,
         o.payment_method,
-        o.created_at
+        o.created_at,
+        p.name AS product_name,
+        oi.quantity,
+        oi.price
      FROM orders o
      JOIN users u ON o.user_id = u.id
-     ORDER BY o.created_at DESC`,
+     JOIN order_items oi ON o.id = oi.order_id
+     JOIN products p ON oi.product_id = p.id
+     ORDER BY o.created_at DESC, o.id DESC`,
     (err, results) => {
       if (err) {
         console.error("Failed to fetch all orders:", err);
         return res.status(500).json({ message: "Failed to fetch all orders" });
       }
 
-      res.json({ orders: results });
+      const groupedOrders = {};
+
+      results.forEach((row) => {
+        if (!groupedOrders[row.id]) {
+          groupedOrders[row.id] = {
+            id: row.id,
+            user_id: row.user_id,
+            customer_name: row.customer_name,
+            customer_email: row.customer_email,
+            total: row.total,
+            status: row.status,
+            address: row.address,
+            phone: row.phone,
+            payment_method: row.payment_method,
+            created_at: row.created_at,
+            items: [],
+          };
+        }
+
+        groupedOrders[row.id].items.push({
+          product_name: row.product_name,
+          quantity: row.quantity,
+          price: row.price,
+        });
+      });
+
+      res.json({ orders: Object.values(groupedOrders) });
     }
   );
 };
@@ -203,8 +246,9 @@ exports.getAllOrders = (req, res) => {
 exports.updateOrderStatus = (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  const currentUser = req.session.user;
 
-  const allowedStatuses = ["pending", "confirmed", "shipped", "delivered"];
+  const allowedStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
 
   if (!allowedStatuses.includes(status)) {
     return res.status(400).json({ message: "Invalid status" });
@@ -222,6 +266,14 @@ exports.updateOrderStatus = (req, res) => {
       if (result.affectedRows === 0) {
         return res.status(404).json({ message: "Order not found" });
       }
+
+      logActivity({
+        userId: currentUser?.id,
+        userName: currentUser?.name,
+        userEmail: currentUser?.email,
+        action: "Order status updated",
+        details: `${currentUser?.name || "Admin"} updated Order #${id} to ${status}`,
+      });
 
       res.json({ message: "Order status updated successfully" });
     }

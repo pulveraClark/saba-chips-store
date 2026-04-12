@@ -8,14 +8,20 @@ function Profile() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+
+  const ORDERS_PER_PAGE = 5;
 
   useEffect(() => {
     fetchProfile();
   }, []);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (showRefresh = false) => {
     try {
+      if (showRefresh) setRefreshing(true);
+
       const data = await getMe();
 
       if (data.user) {
@@ -35,8 +41,15 @@ function Profile() {
     } finally {
       setLoading(false);
       setOrdersLoading(false);
+      setRefreshing(false);
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
+  const paginatedOrders = orders.slice(
+    (page - 1) * ORDERS_PER_PAGE,
+    page * ORDERS_PER_PAGE
+  );
 
   if (loading) {
     return (
@@ -150,9 +163,19 @@ function Profile() {
             </div>
 
             <div className="bg-white rounded-3xl shadow-2xl p-10 border border-[#ead7b8]">
-              <h3 className="text-3xl font-black text-[#8b5e34] mb-8">
-                Order History
-              </h3>
+              <div className="flex items-center justify-between gap-4 mb-8">
+                <h3 className="text-3xl font-black text-[#8b5e34]">
+                  Order History
+                </h3>
+
+                <button
+                  onClick={() => fetchProfile(true)}
+                  disabled={refreshing}
+                  className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28] disabled:opacity-60"
+                >
+                  {refreshing ? "↻..." : "↻"}
+                </button>
+              </div>
 
               {ordersLoading ? (
                 <div className="text-center py-16 text-xl text-[#8b5e34] animate-pulse">
@@ -170,69 +193,99 @@ function Profile() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-6">
-                  {orders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="border border-[#ead7b8] rounded-2xl p-6 bg-[#fffaf2]"
-                    >
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                        <div>
-                          <h4 className="text-2xl font-black text-[#8b5e34]">
-                            Order #{order.id}
-                          </h4>
-                          <p className="text-[#6d4c2f]">
-                            {new Date(order.created_at).toLocaleString()}
-                          </p>
-                        </div>
-
-                        <div className="text-right">
-                          <p className="text-2xl font-black text-[#8b5e34]">
-                            ₱{Number(order.total).toLocaleString()}
-                          </p>
-                          <span
-                            className={`inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-full text-sm font-bold capitalize ${
-                              order.status === "pending"
-                                ? "bg-yellow-100 text-yellow-700"
-                                : order.status === "confirmed"
-                                ? "bg-blue-100 text-blue-700"
-                                : order.status === "shipped"
-                                ? "bg-purple-100 text-purple-700"
-                                : order.status === "delivered"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-700"
-                            }`}
-                          >
-                            <span className="w-2 h-2 rounded-full bg-current"></span>
-                            {order.status}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
-                        {order.items.map((item, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center bg-white rounded-xl p-4 border border-[#f1e3ca]"
-                          >
-                            <div>
-                              <p className="font-semibold text-gray-900">
-                                {item.product}
-                              </p>
-                              <p className="text-sm text-[#6d4c2f]">
-                                Quantity: {item.quantity}
-                              </p>
-                            </div>
-
-                            <p className="font-bold text-[#8b5e34]">
-                              ₱{Number(item.price).toLocaleString()}
+                <>
+                  <div className="space-y-6">
+                    {paginatedOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        className="border border-[#ead7b8] rounded-2xl p-6 bg-[#fffaf2]"
+                      >
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                          <div>
+                            <h4 className="text-2xl font-black text-[#8b5e34]">
+                              Order #{order.id}
+                            </h4>
+                            <p className="text-[#6d4c2f]">
+                              {new Date(order.created_at).toLocaleString()}
                             </p>
                           </div>
-                        ))}
+
+                          <div className="text-right">
+                            <p className="text-2xl font-black text-[#8b5e34]">
+                              ₱{Number(order.total).toLocaleString()}
+                            </p>
+                            <span
+                              className={`inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-full text-sm font-bold capitalize ${
+                                order.status === "pending"
+                                  ? "bg-yellow-100 text-yellow-700"
+                                  : order.status === "confirmed"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : order.status === "shipped"
+                                  ? "bg-purple-100 text-purple-700"
+                                  : order.status === "delivered"
+                                  ? "bg-green-100 text-green-700"
+                                  : order.status === "cancelled"
+                                  ? "bg-red-100 text-red-700"
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              <span className="w-2 h-2 rounded-full bg-current"></span>
+                              {order.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          {order.items.map((item, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between items-center bg-white rounded-xl p-4 border border-[#f1e3ca]"
+                            >
+                              <div>
+                                <p className="font-semibold text-gray-900">
+                                  {item.product}
+                                </p>
+                                <p className="text-sm text-[#6d4c2f]">
+                                  Quantity: {item.quantity}
+                                </p>
+                              </div>
+
+                              <p className="font-bold text-[#8b5e34]">
+                                ₱{Number(item.price).toLocaleString()}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-[#f1e3ca]">
+                    <p className="text-[#6d4c2f] font-medium">
+                      Page {page} of {totalPages} • {orders.length} total orders
+                    </p>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                        disabled={page === 1}
+                        className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Prev
+                      </button>
+
+                      <button
+                        onClick={() =>
+                          setPage((prev) => (prev < totalPages ? prev + 1 : prev))
+                        }
+                        disabled={page >= totalPages}
+                        className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
