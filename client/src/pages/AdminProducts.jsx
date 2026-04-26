@@ -6,6 +6,7 @@ import {
   deleteProduct,
 } from "../assets/services/productService.js";
 import { useProducts } from "../context/ProductContext.jsx";
+import { sortByNewest } from "../utils/sortByNewest.js";
 
 function AdminProducts() {
   const { products, refreshProducts } = useProducts();
@@ -133,8 +134,9 @@ function AdminProducts() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(products.length / PRODUCTS_PER_PAGE));
-  const paginatedProducts = products.slice(
+  const sortedProducts = sortByNewest(products);
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE));
+  const paginatedProducts = sortedProducts.slice(
     (page - 1) * PRODUCTS_PER_PAGE,
     page * PRODUCTS_PER_PAGE
   );

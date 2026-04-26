@@ -8,6 +8,12 @@ import {
   getTopProductsChartData,
   getAdvancedInsights,
 } from "../assets/services/adminService.js";
+import { sortByNewest } from "../utils/sortByNewest.js";
+import {
+  exportToCsv,
+  exportToExcel,
+  exportToPdfPrint,
+} from "../utils/exportData.js";
 
 import {
   Chart as ChartJS,
@@ -152,12 +158,110 @@ function AdminReports() {
     ],
   };
 
+  const sortedTransactions = sortByNewest(transactions);
+  const summaryRows = [
+    { metric: "Total Users", value: summary.totalUsers || 0 },
+    { metric: "Total Products", value: summary.totalProducts || 0 },
+    { metric: "Total Orders", value: summary.totalOrders || 0 },
+    { metric: "Delivered Sales", value: Number(summary.totalSales || 0).toFixed(2) },
+    { metric: "Pending Orders", value: summary.pendingOrders || 0 },
+    { metric: "Confirmed Orders", value: summary.confirmedOrders || 0 },
+    { metric: "Shipped Orders", value: summary.shippedOrders || 0 },
+    { metric: "Delivered Orders", value: summary.deliveredOrders || 0 },
+    { metric: "Cancelled Orders", value: summary.cancelledOrders || 0 },
+    { metric: "Average Order Value", value: Number(summary.averageOrderValue || 0).toFixed(2) },
+    { metric: "New Customers", value: summary.newCustomers || 0 },
+    { metric: "Returning Customers", value: summary.returningCustomers || 0 },
+    { metric: "Repeat Purchase Rate (%)", value: summary.repeatPurchaseRate || 0 },
+    { metric: "Total Stock Units", value: summary.totalStockUnits || 0 },
+    { metric: "Low Stock Products", value: summary.lowStockProducts || 0 },
+    { metric: "Out of Stock Products", value: summary.outOfStockProducts || 0 },
+    { metric: "Daily Revenue", value: Number(advancedInsights.dailyRevenue || 0).toFixed(2) },
+    { metric: "Weekly Revenue", value: Number(advancedInsights.weeklyRevenue || 0).toFixed(2) },
+    { metric: "Monthly Revenue", value: Number(advancedInsights.monthlyRevenue || 0).toFixed(2) },
+    { metric: "Daily Orders", value: advancedInsights.dailyOrders || 0 },
+    { metric: "Weekly Orders", value: advancedInsights.weeklyOrders || 0 },
+    { metric: "Monthly Orders", value: advancedInsights.monthlyOrders || 0 },
+    { metric: "Daily Units Sold", value: advancedInsights.dailyUnitsSold || 0 },
+    { metric: "Weekly Units Sold", value: advancedInsights.weeklyUnitsSold || 0 },
+    { metric: "Monthly Units Sold", value: advancedInsights.monthlyUnitsSold || 0 },
+  ];
+
+  const transactionRows = sortedTransactions.map((transaction) => ({
+    orderId: transaction.id,
+    customerName: transaction.customer_name,
+    customerEmail: transaction.customer_email,
+    total: Number(transaction.total || 0).toFixed(2),
+    status: transaction.status,
+    paymentMethod: transaction.payment_method,
+    address: transaction.address,
+    phone: transaction.phone,
+    createdAt: new Date(transaction.created_at).toLocaleString(),
+    items: (transaction.items || [])
+      .map((item) => `${item.product_name} x${item.quantity}`)
+      .join(", "),
+  }));
+
+  const summaryColumns = [
+    { key: "metric", label: "Metric" },
+    { key: "value", label: "Value" },
+  ];
+
+  const transactionColumns = [
+    { key: "orderId", label: "Order ID" },
+    { key: "customerName", label: "Customer Name" },
+    { key: "customerEmail", label: "Customer Email" },
+    { key: "total", label: "Total" },
+    { key: "status", label: "Status" },
+    { key: "paymentMethod", label: "Payment Method" },
+    { key: "address", label: "Address" },
+    { key: "phone", label: "Phone" },
+    { key: "createdAt", label: "Created At" },
+    { key: "items", label: "Items" },
+  ];
+
+  const handleExportSummaryCsv = () => {
+    exportToCsv("summary-report.csv", summaryColumns, summaryRows);
+  };
+
+  const handleExportSummaryExcel = () => {
+    exportToExcel("summary-report.xls", "Summary Report", summaryColumns, summaryRows);
+  };
+
+  const handleExportTransactionsCsv = () => {
+    exportToCsv("transaction-history.csv", transactionColumns, transactionRows);
+  };
+
+  const handleExportTransactionsExcel = () => {
+    exportToExcel(
+      "transaction-history.xls",
+      "Transaction History",
+      transactionColumns,
+      transactionRows
+    );
+  };
+
+  const handleExportReportsPdf = () => {
+    exportToPdfPrint("Saba Chips Reports", [
+      {
+        heading: "Summary Report",
+        columns: summaryColumns,
+        rows: summaryRows,
+      },
+      {
+        heading: "Transaction History",
+        columns: transactionColumns,
+        rows: transactionRows,
+      },
+    ]);
+  };
+
   const transactionsTotalPages = Math.max(
     1,
-    Math.ceil(transactions.length / TRANSACTIONS_PER_PAGE)
+    Math.ceil(sortedTransactions.length / TRANSACTIONS_PER_PAGE)
   );
 
-  const paginatedTransactions = transactions.slice(
+  const paginatedTransactions = sortedTransactions.slice(
     (transactionsPage - 1) * TRANSACTIONS_PER_PAGE,
     transactionsPage * TRANSACTIONS_PER_PAGE
   );
@@ -189,6 +293,47 @@ function AdminReports() {
             Summary reports, transaction history, and analytics charts for your
             store.
           </p>
+        </div>
+
+        <div className="bg-white rounded-3xl p-5 shadow-lg border border-[#ead7b8] mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-black text-[#8b5e34]">Export Reports</h2>
+              <p className="text-[#6d4c2f]">Download your reports in CSV, Excel, or PDF-ready format.</p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleExportSummaryCsv}
+                className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28]"
+              >
+                Summary CSV
+              </button>
+              <button
+                onClick={handleExportSummaryExcel}
+                className="px-4 py-3 rounded-2xl bg-[#b8834d] text-white font-bold hover:bg-[#9e6d3b]"
+              >
+                Summary Excel
+              </button>
+              <button
+                onClick={handleExportTransactionsCsv}
+                className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28]"
+              >
+                Transactions CSV
+              </button>
+              <button
+                onClick={handleExportTransactionsExcel}
+                className="px-4 py-3 rounded-2xl bg-[#b8834d] text-white font-bold hover:bg-[#9e6d3b]"
+              >
+                Transactions Excel
+              </button>
+              <button
+                onClick={handleExportReportsPdf}
+                className="px-4 py-3 rounded-2xl bg-[#2f4858] text-white font-bold hover:bg-[#243946]"
+              >
+                Export PDF
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">

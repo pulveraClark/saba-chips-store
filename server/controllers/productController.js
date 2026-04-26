@@ -5,7 +5,7 @@ const logActivity = require("../utils/logActivity");
 
 exports.getAllProducts = (req, res) => {
   db.query(
-    "SELECT * FROM products ORDER BY created_at DESC",
+    "SELECT * FROM products ORDER BY created_at DESC, id DESC",
     (err, results) => {
       if (err) {
         console.error("Failed to fetch products:", err);

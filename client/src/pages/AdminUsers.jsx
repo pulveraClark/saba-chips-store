@@ -6,6 +6,12 @@ import {
   updateUser,
   deleteUser,
 } from "../assets/services/adminService.js";
+import { sortByNewest } from "../utils/sortByNewest.js";
+import {
+  exportToCsv,
+  exportToExcel,
+  exportToPdfPrint,
+} from "../utils/exportData.js";
 
 function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -42,7 +48,7 @@ function AdminUsers() {
     try {
       if (showRefresh) setUsersRefreshing(true);
       const data = await getAllUsers(page, 5, search);
-      setUsers(data.users || []);
+      setUsers(sortByNewest(data.users || []));
       setPagination(data.pagination || {});
       setMessage("");
     } catch (err) {
@@ -57,7 +63,7 @@ function AdminUsers() {
     try {
       if (showRefresh) setLogsRefreshing(true);
       const activityLogs = await getActivityLogs();
-      setLogs(activityLogs || []);
+      setLogs(sortByNewest(activityLogs || []));
     } catch (err) {
       console.error("Failed to fetch logs:", err);
     } finally {
@@ -102,8 +108,75 @@ function AdminUsers() {
     setPage(1);
   };
 
-  const logsTotalPages = Math.max(1, Math.ceil(logs.length / LOGS_PER_PAGE));
-  const paginatedLogs = logs.slice(
+  const userRows = users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    joined: new Date(user.created_at).toLocaleString(),
+  }));
+  const userColumns = [
+    { key: "id", label: "ID" },
+    { key: "name", label: "Name" },
+    { key: "email", label: "Email" },
+    { key: "joined", label: "Joined" },
+  ];
+
+  const sortedLogs = sortByNewest(logs);
+  const logRows = sortedLogs.map((log) => ({
+    id: log.id,
+    action: log.action,
+    userName: log.user_name || "Unknown User",
+    userEmail: log.user_email || "No email",
+    details: log.details,
+    createdAt: new Date(log.created_at).toLocaleString(),
+  }));
+  const logColumns = [
+    { key: "id", label: "Log ID" },
+    { key: "action", label: "Action" },
+    { key: "userName", label: "User Name" },
+    { key: "userEmail", label: "User Email" },
+    { key: "details", label: "Details" },
+    { key: "createdAt", label: "Created At" },
+  ];
+
+  const handleExportUsersCsv = () => {
+    exportToCsv(`users-page-${page}.csv`, userColumns, userRows);
+  };
+
+  const handleExportUsersExcel = () => {
+    exportToExcel(`users-page-${page}.xls`, "Users", userColumns, userRows);
+  };
+
+  const handleExportUsersPdf = () => {
+    exportToPdfPrint("Users Report", [
+      {
+        heading: `Users - Page ${page}`,
+        columns: userColumns,
+        rows: userRows,
+      },
+    ]);
+  };
+
+  const handleExportLogsCsv = () => {
+    exportToCsv("user-activity-logs.csv", logColumns, logRows);
+  };
+
+  const handleExportLogsExcel = () => {
+    exportToExcel("user-activity-logs.xls", "User Activity Logs", logColumns, logRows);
+  };
+
+  const handleExportLogsPdf = () => {
+    exportToPdfPrint("User Activity Logs", [
+      {
+        heading: "User Activity Logs",
+        columns: logColumns,
+        rows: logRows,
+      },
+    ]);
+  };
+
+  const logsTotalPages = Math.max(1, Math.ceil(sortedLogs.length / LOGS_PER_PAGE));
+  const paginatedLogs = sortedLogs.slice(
     (logsPage - 1) * LOGS_PER_PAGE,
     logsPage * LOGS_PER_PAGE
   );
@@ -169,6 +242,27 @@ function AdminUsers() {
                 </button>
               </div>
             </div>
+          </div>
+
+          <div className="px-6 py-4 bg-[#fffaf2] border-b border-[#f1e3ca] flex flex-wrap gap-3">
+            <button
+              onClick={handleExportUsersCsv}
+              className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28]"
+            >
+              Export Users CSV
+            </button>
+            <button
+              onClick={handleExportUsersExcel}
+              className="px-4 py-3 rounded-2xl bg-[#b8834d] text-white font-bold hover:bg-[#9e6d3b]"
+            >
+              Export Users Excel
+            </button>
+            <button
+              onClick={handleExportUsersPdf}
+              className="px-4 py-3 rounded-2xl bg-[#2f4858] text-white font-bold hover:bg-[#243946]"
+            >
+              Export Users PDF
+            </button>
           </div>
 
           {users.length === 0 ? (
@@ -329,6 +423,27 @@ function AdminUsers() {
                 {logsRefreshing ? "↻..." : "↻"}
               </button>
             </div>
+          </div>
+
+          <div className="px-6 py-4 bg-[#fffaf2] border-b border-[#f1e3ca] flex flex-wrap gap-3">
+            <button
+              onClick={handleExportLogsCsv}
+              className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28]"
+            >
+              Export Logs CSV
+            </button>
+            <button
+              onClick={handleExportLogsExcel}
+              className="px-4 py-3 rounded-2xl bg-[#b8834d] text-white font-bold hover:bg-[#9e6d3b]"
+            >
+              Export Logs Excel
+            </button>
+            <button
+              onClick={handleExportLogsPdf}
+              className="px-4 py-3 rounded-2xl bg-[#2f4858] text-white font-bold hover:bg-[#243946]"
+            >
+              Export Logs PDF
+            </button>
           </div>
 
           {logsLoading ? (
