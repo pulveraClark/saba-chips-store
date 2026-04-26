@@ -3,6 +3,7 @@ import { getCart } from "../assets/services/cartService.js";
 
 const CartContext = createContext();
 
+/* eslint-disable react-refresh/only-export-components */
 export function CartProvider({ children }) {
   const [cartCount, setCartCount] = useState(0);
 
@@ -10,13 +11,14 @@ export function CartProvider({ children }) {
     try {
       const cart = await getCart();
       setCartCount((cart || []).length); // count unique products, not quantity
-    } catch (err) {
+    } catch {
       setCartCount(0);
     }
   };
 
   useEffect(() => {
-    refreshCartCount();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshCartCount();
   }, []);
 
   return (

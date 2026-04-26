@@ -12,6 +12,9 @@ coverage/
 # Environment files
 .env
 .env.*
+!.env.example
+!client/.env.example
+!server/.env.example
 server/.env
 client/.env
 client/.env.*
@@ -39,3 +42,7 @@ Thumbs.db
 # Local temp files
 *.tmp
 *.temp
+
+# Uploaded files
+server/uploads/*
+!server/uploads/.gitkeep

@@ -1,18 +1,40 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { addToCart } from "../assets/services/cartService.js";
+import { askTasteAssistant } from "../assets/services/aiService.js";
 import { useCart } from "../context/CartContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
+import { getMediaUrl } from "../utils/media.js";
 
 function Home() {
   const [loading, setLoading] = useState(true);
   const [cartMessage, setCartMessage] = useState("");
+  const [aiMessage, setAiMessage] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      sender: "ai",
+      text: "Hi! I’m your Saba Chips Taste Assistant. Ask me about flavors, best sellers, or what to buy first.",
+    },
+  ]);
+
+  const chatEndRef = useRef(null);
+
   const { refreshCartCount } = useCart();
   const { products, refreshProducts } = useProducts();
 
+  // Product loading runs once on entry; later refreshes happen after cart actions.
   useEffect(() => {
     loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (chatOpen) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, aiLoading, chatOpen]);
 
   const loadProducts = async () => {
     try {
@@ -41,6 +63,49 @@ function Home() {
     }
   };
 
+  const handleAskAI = async () => {
+    if (!aiMessage.trim()) return;
+
+    const userQuestion = aiMessage.trim();
+
+    setChatMessages((prev) => [
+      ...prev,
+      { sender: "user", text: userQuestion },
+    ]);
+
+    setAiMessage("");
+    setAiLoading(true);
+
+    try {
+      const res = await askTasteAssistant(userQuestion);
+
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: res.reply || "Sorry, I could not answer that right now.",
+        },
+      ]);
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: "Sorry, the AI assistant is unavailable right now.",
+        },
+      ]);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleAskAI();
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f2e8]">
@@ -52,7 +117,7 @@ function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f2e8]">
+    <div className="min-h-screen bg-[#f8f2e8] relative">
       {/* Hero */}
       <section className="bg-gradient-to-b from-[#f1d7ac] to-[#f8f2e8] pt-28 pb-20">
         <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
@@ -82,9 +147,9 @@ function Home() {
 
               <div className="grid sm:grid-cols-2 gap-3 text-[#5f432c]">
                 <div>🧀 Cheese</div>
-                <div>🌿 Sour Cream <span className="font-semibold">(best seller)</span></div>
-                <div>🍖 Barbecue <span className="font-semibold">(best seller)</span></div>
-                <div>🌶️ Chili BBQ <span className="font-semibold">(best seller)</span></div>
+                <div>🌿 Sour Cream</div>
+                <div>🍖 Barbecue</div>
+                <div>🌶️ Chili BBQ</div>
                 <div>🧀 Sour Cheese</div>
                 <div>⚪ Plain (No sugar, No Flavor)</div>
               </div>
@@ -92,7 +157,7 @@ function Home() {
 
             <div className="bg-[#fff7eb] border border-[#ead7b8] rounded-2xl p-5 mb-8 shadow-sm">
               <p className="text-[#7a5331] font-semibold mb-2">
-                🚚 Free delivery on 4 packs and up
+                🚚 Free delivery
               </p>
               <p className="text-[#6d4c2f]">
                 Consolacion, Liloan & Compostela
@@ -168,7 +233,7 @@ function Home() {
                 <div className="h-64 bg-[#f7ecd8] flex items-center justify-center overflow-hidden">
                   {product.image ? (
                     <img
-                      src={`http://localhost:5000${product.image}`}
+                      src={getMediaUrl(product.image)}
                       alt={product.name}
                       className="w-full h-full object-cover"
                     />
@@ -237,6 +302,88 @@ function Home() {
           )}
         </div>
       </section>
+
+      {/* Floating AI Chat */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {chatOpen && (
+          <div className="w-[340px] sm:w-[380px] h-[520px] bg-white border border-[#ead7b8] rounded-3xl shadow-2xl mb-4 overflow-hidden flex flex-col">
+            <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] text-white p-4 flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-lg">🤖 Taste Assistant</h3>
+                <p className="text-sm text-[#fff1df]">
+                  Ask about flavors and best sellers
+                </p>
+              </div>
+
+              <button
+                onClick={() => setChatOpen(false)}
+                className="text-white text-xl font-bold hover:opacity-80"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 bg-[#fffaf2] space-y-3">
+              {chatMessages.map((msg, index) => (
+                <div
+                  key={index}
+                  className={`flex ${
+                    msg.sender === "user" ? "justify-end" : "justify-start"
+                  }`}
+                >
+                  <div
+                    className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm ${
+                      msg.sender === "user"
+                        ? "bg-[#8b5e34] text-white rounded-br-md"
+                        : "bg-white text-[#6d4c2f] border border-[#ead7b8] rounded-bl-md"
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+
+              {aiLoading && (
+                <div className="flex justify-start">
+                  <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-md text-sm shadow-sm bg-white text-[#6d4c2f] border border-[#ead7b8]">
+                    Thinking...
+                  </div>
+                </div>
+              )}
+
+              <div ref={chatEndRef}></div>
+            </div>
+
+            <div className="p-4 border-t border-[#ead7b8] bg-white">
+              <div className="flex gap-2">
+                <textarea
+                  rows="2"
+                  value={aiMessage}
+                  onChange={(e) => setAiMessage(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask about flavors..."
+                  className="flex-1 border border-[#d8be96] rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-[#d6b585] resize-none"
+                />
+
+                <button
+                  onClick={handleAskAI}
+                  disabled={aiLoading}
+                  className="bg-[#8b5e34] text-white px-4 rounded-2xl font-semibold hover:bg-[#714a28] transition disabled:opacity-60"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={() => setChatOpen((prev) => !prev)}
+          className="w-16 h-16 rounded-full bg-[#8b5e34] text-white shadow-2xl flex items-center justify-center text-2xl hover:bg-[#714a28] transition"
+        >
+          💬
+        </button>
+      </div>
     </div>
   );
 }

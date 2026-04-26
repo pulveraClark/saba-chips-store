@@ -31,13 +31,13 @@ function Profile() {
         try {
           const userOrders = await getUserOrders();
           setOrders(userOrders || []);
-        } catch (orderErr) {
+        } catch {
           setOrders([]);
         }
       } else {
         setError("Please login to view profile");
       }
-    } catch (err) {
+    } catch {
       setError("Please login to view profile");
     } finally {
       setLoading(false);

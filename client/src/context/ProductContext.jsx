@@ -3,6 +3,7 @@ import { getProducts } from "../assets/services/productService.js";
 
 const ProductContext = createContext();
 
+/* eslint-disable react-refresh/only-export-components */
 export function ProductProvider({ children }) {
   const [products, setProducts] = useState([]);
 
@@ -16,7 +17,8 @@ export function ProductProvider({ children }) {
   };
 
   useEffect(() => {
-    refreshProducts();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshProducts();
   }, []);
 
   return (

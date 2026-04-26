@@ -7,6 +7,7 @@ import {
 } from "../assets/services/productService.js";
 import { useProducts } from "../context/ProductContext.jsx";
 import { sortByNewest } from "../utils/sortByNewest.js";
+import { getMediaUrl } from "../utils/media.js";
 
 function AdminProducts() {
   const { products, refreshProducts } = useProducts();
@@ -34,15 +35,17 @@ function AdminProducts() {
     stock: "",
   });
 
+  // Products are loaded on mount; subsequent refreshes are manual after mutations.
   useEffect(() => {
     loadProducts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadProducts = async (showRefresh = false) => {
     try {
       if (showRefresh) setRefreshing(true);
       await refreshProducts();
-    } catch (err) {
+    } catch {
       alert("Failed to fetch products");
     } finally {
       setLoading(false);
@@ -281,7 +284,7 @@ function AdminProducts() {
                         <div className="space-y-2">
                           {editForm.existingImage && (
                             <img
-                              src={`http://localhost:5000${editForm.existingImage}`}
+                              src={getMediaUrl(editForm.existingImage)}
                               alt={editForm.name}
                               className="w-16 h-16 object-cover rounded-xl border border-[#ead7b8]"
                             />
@@ -299,7 +302,7 @@ function AdminProducts() {
                         </div>
                       ) : product.image ? (
                         <img
-                          src={`http://localhost:5000${product.image}`}
+                          src={getMediaUrl(product.image)}
                           alt={product.name}
                           className="w-16 h-16 object-cover rounded-xl border border-[#ead7b8]"
                         />
