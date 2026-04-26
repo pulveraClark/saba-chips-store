@@ -152,7 +152,7 @@ exports.getUserOrders = (req, res) => {
      JOIN order_items oi ON o.id = oi.order_id
      JOIN products p ON oi.product_id = p.id
      WHERE o.user_id = ?
-     ORDER BY o.created_at DESC`,
+     ORDER BY o.created_at DESC, o.id DESC`,
     [userId],
     (err, results) => {
       if (err) {

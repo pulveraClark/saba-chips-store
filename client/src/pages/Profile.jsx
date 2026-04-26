@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getMe } from "../assets/services/authService.js";
 import { getUserOrders } from "../assets/services/orderService.js";
+import { sortByNewest } from "../utils/sortByNewest.js";
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -45,8 +46,9 @@ function Profile() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
-  const paginatedOrders = orders.slice(
+  const sortedOrders = sortByNewest(orders);
+  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / ORDERS_PER_PAGE));
+  const paginatedOrders = sortedOrders.slice(
     (page - 1) * ORDERS_PER_PAGE,
     page * ORDERS_PER_PAGE
   );
@@ -141,7 +143,7 @@ function Profile() {
                           Latest Status:
                         </span>
                         <span className="font-bold text-[#8b5e34] capitalize">
-                          {orders.length > 0 ? orders[0].status : "No orders yet"}
+                          {sortedOrders.length > 0 ? sortedOrders[0].status : "No orders yet"}
                         </span>
                       </div>
 
@@ -151,7 +153,7 @@ function Profile() {
                         </span>
                         <span className="font-bold text-[#8b5e34]">
                           ₱
-                          {orders
+                          {sortedOrders
                             .reduce((sum, order) => sum + Number(order.total), 0)
                             .toLocaleString()}
                         </span>

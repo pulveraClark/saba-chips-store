@@ -23,7 +23,7 @@ exports.getAllUsers = (req, res) => {
         `SELECT id, name, email, created_at
          FROM users
          ${whereClause}
-         ORDER BY created_at DESC
+         ORDER BY created_at DESC, id DESC
          LIMIT ? OFFSET ?`,
         [...queryParams, limit, offset],
         (err, results) => {
@@ -50,7 +50,7 @@ exports.getActivityLogs = (req, res) => {
   db.query(
     `SELECT id, user_id, user_name, user_email, action, details, created_at
      FROM activity_logs
-     ORDER BY created_at DESC
+     ORDER BY created_at DESC, id DESC
      LIMIT 30`,
     (err, results) => {
       if (err) {

@@ -4,6 +4,7 @@ import {
   getAllOrders,
   updateOrderStatus,
 } from "../assets/services/orderService.js";
+import { sortByNewest } from "../utils/sortByNewest.js";
 
 function AdminOrders() {
   const [orders, setOrders] = useState([]);
@@ -43,8 +44,9 @@ function AdminOrders() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(orders.length / ORDERS_PER_PAGE));
-  const paginatedOrders = orders.slice(
+  const sortedOrders = sortByNewest(orders);
+  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / ORDERS_PER_PAGE));
+  const paginatedOrders = sortedOrders.slice(
     (page - 1) * ORDERS_PER_PAGE,
     page * ORDERS_PER_PAGE
   );
