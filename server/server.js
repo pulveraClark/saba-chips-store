@@ -16,6 +16,8 @@ const productRoutes = require("./routes/productRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const wishlistRoutes = require("./routes/wishlistRoutes");
+const reviewRoutes = require("./routes/reviewRoutes");
 const runMigrations = require("./utils/runMigrations");
 
 const app = express();
@@ -84,6 +86,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/wishlist", wishlistRoutes);
+app.use("/api/reviews", reviewRoutes);
 app.use("/uploads", express.static(uploadsDir));
 
 app.get("/api/health", (req, res) => {

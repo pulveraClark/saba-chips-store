@@ -5,6 +5,7 @@ import {
   updateProduct,
   deleteProduct,
 } from "../assets/services/productService.js";
+import { getAdminReviews } from "../assets/services/reviewService.js";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
 import { sortByNewest } from "../utils/sortByNewest.js";
@@ -16,6 +17,8 @@ function AdminProducts() {
   const [refreshing, setRefreshing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [page, setPage] = useState(1);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
   const { notify } = useNotification();
 
   const PRODUCTS_PER_PAGE = 5;
@@ -46,7 +49,7 @@ function AdminProducts() {
   const loadProducts = async (showRefresh = false) => {
     try {
       if (showRefresh) setRefreshing(true);
-      await refreshProducts();
+      await Promise.all([refreshProducts(), loadReviews()]);
     } catch {
       notify({
         type: "error",
@@ -111,6 +114,18 @@ function AdminProducts() {
     }
   };
 
+  const loadReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      const data = await getAdminReviews();
+      setReviews(data || []);
+    } catch {
+      setReviews([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (confirm("Delete this product?")) {
       try {
@@ -168,6 +183,10 @@ function AdminProducts() {
   };
 
   const sortedProducts = sortByNewest(products);
+  const lowStockProducts = products.filter(
+    (product) => Number(product.stock) > 0 && Number(product.stock) <= 5
+  );
+  const outOfStockProducts = products.filter((product) => Number(product.stock) <= 0);
   const totalPages = Math.max(1, Math.ceil(sortedProducts.length / PRODUCTS_PER_PAGE));
   const paginatedProducts = sortedProducts.slice(
     (page - 1) * PRODUCTS_PER_PAGE,
@@ -215,6 +234,25 @@ function AdminProducts() {
         </div>
 
         <div className="bg-white rounded-3xl shadow-xl p-8 border border-[#ead7b8] mb-8">
+          {(lowStockProducts.length > 0 || outOfStockProducts.length > 0) && (
+            <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              <h2 className="text-xl font-black text-amber-900">Stock Alerts</h2>
+              <p className="mt-2 text-sm text-[#6d4c2f]">
+                {lowStockProducts.length} low stock product(s), {outOfStockProducts.length} out of stock.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {[...lowStockProducts, ...outOfStockProducts].slice(0, 8).map((product) => (
+                  <span
+                    key={product.id}
+                    className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#8b5e34]"
+                  >
+                    {product.name}: {product.stock}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           <h2 className="text-2xl font-black text-[#8b5e34] mb-6">
             Add New Product
           </h2>
@@ -499,6 +537,61 @@ function AdminProducts() {
               </button>
             </div>
           </div>
+        </div>
+
+        <div className="mt-8 bg-white rounded-3xl shadow-xl overflow-hidden border border-[#ead7b8]">
+          <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] p-6 text-white">
+            <h2 className="text-3xl font-black">Product Reviews</h2>
+            <p className="mt-1 text-[#fff1df]">
+              Recent customer feedback from delivered orders.
+            </p>
+          </div>
+
+          {reviewsLoading ? (
+            <div className="p-8 text-center text-[#8b5e34] font-bold">
+              Loading reviews...
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="p-8 text-center text-[#6d4c2f]">
+              No product reviews yet.
+            </div>
+          ) : (
+            <div className="divide-y divide-[#f1e3ca]">
+              {reviews.map((review) => (
+                <div key={review.id} className="p-6">
+                  <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="text-lg font-black text-[#8b5e34]">
+                          {review.product_name}
+                        </h3>
+                        <span className="rounded-full bg-[#fffaf2] px-3 py-1 text-sm font-black text-[#8b5e34]">
+                          {"★".repeat(Number(review.rating))}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm text-[#6d4c2f]">
+                        {review.customer_name} • {review.customer_email}
+                      </p>
+                      <p className="mt-1 text-sm text-[#7a5331]">
+                        Order #{review.order_id} •{" "}
+                        {new Date(review.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+
+                  {review.comment ? (
+                    <p className="mt-4 rounded-2xl bg-[#fffaf2] p-4 text-[#6d4c2f]">
+                      {review.comment}
+                    </p>
+                  ) : (
+                    <p className="mt-4 text-sm italic text-[#7a5331]">
+                      No written comment.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

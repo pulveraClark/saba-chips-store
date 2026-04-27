@@ -2,6 +2,7 @@ const db = require("../config/db");
 const logActivity = require("../utils/logActivity");
 const queryAsync = require("../utils/queryAsync");
 const { createNotification, notifyAdmin } = require("../utils/realtimeData");
+const notifyLowStockProducts = require("../utils/stockAlerts");
 
 const ORDER_TIMELINE_ACTIONS = [
   "Checkout completed",
@@ -287,6 +288,12 @@ exports.checkout = (req, res) => {
                         }
                       }
 
+                      notifyLowStockProducts(cartItems.map((item) => item.product_id)).catch(
+                        (alertErr) => {
+                          console.error("Low stock notification failed:", alertErr);
+                        }
+                      );
+
                       res.json({
                         message: "Order placed successfully!",
                         orderId,
@@ -323,12 +330,18 @@ exports.getUserOrders = (req, res) => {
         cr.reason AS cancellation_reason,
         cr.admin_note AS cancellation_admin_note,
         cr.created_at AS cancellation_created_at,
+        p.id AS product_id,
         oi.quantity,
         p.name,
-        oi.price
+        oi.price,
+        pr.id AS review_id,
+        pr.rating AS review_rating,
+        pr.comment AS review_comment
      FROM orders o
      JOIN order_items oi ON o.id = oi.order_id
      JOIN products p ON oi.product_id = p.id
+     LEFT JOIN product_reviews pr
+       ON pr.order_id = o.id AND pr.product_id = p.id AND pr.user_id = o.user_id
      LEFT JOIN order_cancellation_requests cr ON cr.id = (
        SELECT id
        FROM order_cancellation_requests
@@ -368,9 +381,17 @@ exports.getUserOrders = (req, res) => {
         }
 
         orders[row.id].items.push({
+          product_id: row.product_id,
           product: row.name,
           quantity: row.quantity,
           price: row.price,
+          review: row.review_id
+            ? {
+                id: row.review_id,
+                rating: row.review_rating,
+                comment: row.review_comment,
+              }
+            : null,
         });
       });
 
@@ -514,6 +535,12 @@ exports.updateOrderStatus = (req, res) => {
         }).catch((notifyErr) => {
           console.error("Customer status notification failed:", notifyErr);
         });
+
+        queryAsync("SELECT product_id FROM order_items WHERE order_id = ?", [id])
+          .then((items) => notifyLowStockProducts(items.map((item) => item.product_id)))
+          .catch((alertErr) => {
+            console.error("Low stock notification failed:", alertErr);
+          });
 
         return res.json({ message: "Order status updated successfully" });
       });

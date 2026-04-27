@@ -2,18 +2,38 @@ const db = require("../config/db");
 const fs = require("fs");
 const path = require("path");
 const logActivity = require("../utils/logActivity");
+const queryAsync = require("../utils/queryAsync");
+const notifyLowStockProducts = require("../utils/stockAlerts");
 
-exports.getAllProducts = (req, res) => {
-  db.query(
-    "SELECT * FROM products ORDER BY created_at DESC, id DESC",
-    (err, results) => {
-      if (err) {
-        console.error("Failed to fetch products:", err);
-        return res.status(500).json({ message: "Failed to fetch products" });
-      }
-      res.json({ products: results });
-    }
-  );
+exports.getAllProducts = async (req, res) => {
+  try {
+    const userId = req.session?.userId || null;
+    const products = await queryAsync(
+      `SELECT
+         p.*,
+         COALESCE(AVG(pr.rating), 0) AS average_rating,
+         COUNT(pr.id) AS review_count,
+         ${userId ? "MAX(CASE WHEN w.id IS NULL THEN 0 ELSE 1 END)" : "0"} AS is_wishlisted
+       FROM products p
+       LEFT JOIN product_reviews pr ON pr.product_id = p.id
+       ${userId ? "LEFT JOIN wishlists w ON w.product_id = p.id AND w.user_id = ?" : ""}
+       GROUP BY p.id
+       ORDER BY p.created_at DESC, p.id DESC`,
+      userId ? [userId] : []
+    );
+
+    res.json({
+      products: products.map((product) => ({
+        ...product,
+        average_rating: Number(product.average_rating || 0),
+        review_count: Number(product.review_count || 0),
+        is_wishlisted: Boolean(product.is_wishlisted),
+      })),
+    });
+  } catch (err) {
+    console.error("Failed to fetch products:", err);
+    res.status(500).json({ message: "Failed to fetch products" });
+  }
 };
 
 exports.createProduct = (req, res) => {
@@ -40,6 +60,10 @@ exports.createProduct = (req, res) => {
         userEmail: currentUser?.email,
         action: "Product created",
         details: `${currentUser?.name || "Admin"} created product: ${name}`,
+      });
+
+      notifyLowStockProducts([result.insertId]).catch((alertErr) => {
+        console.error("Low stock notification failed:", alertErr);
       });
 
       res.status(201).json({
@@ -113,6 +137,10 @@ exports.updateProduct = (req, res) => {
           userEmail: currentUser?.email,
           action: "Product updated",
           details: `${currentUser?.name || "Admin"} updated product: ${name}`,
+        });
+
+        notifyLowStockProducts([id]).catch((alertErr) => {
+          console.error("Low stock notification failed:", alertErr);
         });
 
         res.json({

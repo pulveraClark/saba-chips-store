@@ -226,25 +226,6 @@ function Checkout() {
               />
             </div>
 
-            <label className="flex items-start gap-3 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
-              <input
-                type="checkbox"
-                checked={formData.saveProfile}
-                onChange={(e) =>
-                  setFormData({ ...formData, saveProfile: e.target.checked })
-                }
-                className="mt-1 h-5 w-5"
-              />
-              <span>
-                <span className="block font-semibold text-[#8b5e34]">
-                  Save as my default delivery details
-                </span>
-                <span className="text-sm text-[#6d4c2f]">
-                  Next checkout will prefill this address and phone number.
-                </span>
-              </span>
-            </label>
-
             <div>
               <label className="block text-sm font-semibold text-[#6d4c2f] mb-3">
                 Phone Number *
@@ -294,6 +275,25 @@ function Checkout() {
                 Cash on Delivery is currently the only supported payment option.
               </p>
             </div>
+
+            <label className="flex items-start gap-3 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
+              <input
+                type="checkbox"
+                checked={formData.saveProfile}
+                onChange={(e) =>
+                  setFormData({ ...formData, saveProfile: e.target.checked })
+                }
+                className="mt-1 h-5 w-5"
+              />
+              <span>
+                <span className="block font-semibold text-[#8b5e34]">
+                  Save as my default delivery details
+                </span>
+                <span className="text-sm text-[#6d4c2f]">
+                  Next checkout will prefill this address and phone number.
+                </span>
+              </span>
+            </label>
 
             <button
               type="submit"
