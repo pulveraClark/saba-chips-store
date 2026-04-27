@@ -1,5 +1,6 @@
 const queryAsync = require("../utils/queryAsync");
 const { getAdminUser } = require("../utils/realtimeData");
+const { addChatClient, broadcastChatUpdate } = require("../utils/chatEvents");
 
 const isCurrentUserAdmin = (req) => req.session.user?.email === "admin@sabachips.com";
 
@@ -131,9 +132,25 @@ exports.sendMessage = async (req, res) => {
       [senderId, receiverId, message]
     );
 
+    broadcastChatUpdate({
+      senderId,
+      receiverId,
+      messageId: result.insertId,
+    });
+
     res.status(201).json({ message: "Message sent", id: result.insertId });
   } catch (err) {
     console.error("Failed to send message:", err);
     res.status(500).json({ message: "Failed to send message" });
   }
+};
+
+exports.streamChatEvents = (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  res.write(`data: ${JSON.stringify({ type: "chat:connected" })}\n\n`);
+  addChatClient(req.session.userId, res);
 };

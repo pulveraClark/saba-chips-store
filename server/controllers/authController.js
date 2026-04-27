@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const logActivity = require("../utils/logActivity");
 const queryAsync = require("../utils/queryAsync");
+const { ADMIN_EMAIL } = require("../utils/realtimeData");
 
 exports.registerUser = async (req, res) => {
   const { name, email, password } = req.body;
@@ -73,6 +74,7 @@ exports.loginUser = (req, res) => {
       email: user.email,
       phone: user.phone,
       address: user.address,
+      role: user.role,
     };
 
     logActivity({
@@ -91,6 +93,7 @@ exports.loginUser = (req, res) => {
         email: user.email,
         phone: user.phone,
         address: user.address,
+        role: user.role,
       },
     });
   });
@@ -125,7 +128,7 @@ exports.getMe = (req, res) => {
   }
 
   db.query(
-    "SELECT id, name, email, phone, address FROM users WHERE id = ?",
+    "SELECT id, name, email, phone, address, role FROM users WHERE id = ?",
     [req.session.userId],
     (err, results) => {
       if (err) {
@@ -173,7 +176,14 @@ exports.updateMe = async (req, res) => {
       [name, email, phone, address, userId]
     );
 
-    const updatedUser = { id: userId, name, email, phone, address };
+    const updatedUser = {
+      id: userId,
+      name,
+      email,
+      phone,
+      address,
+      role: currentUser?.role || (email === ADMIN_EMAIL ? "admin" : "customer"),
+    };
     req.session.user = updatedUser;
 
     logActivity({

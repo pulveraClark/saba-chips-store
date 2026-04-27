@@ -6,6 +6,7 @@ const path = require("path");
 const cors = require("cors");
 const session = require("express-session");
 const db = require("./config/db");
+const { csrfProtection } = require("./middleware/csrfMiddleware");
 
 const authRoutes = require("./routes/authRoutes");
 const adminRoutes = require("./routes/adminRoutes");
@@ -15,7 +16,7 @@ const productRoutes = require("./routes/productRoutes");
 const aiRoutes = require("./routes/aiRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const chatRoutes = require("./routes/chatRoutes");
-const { initRealtimeTables } = require("./utils/realtimeData");
+const runMigrations = require("./utils/runMigrations");
 
 const app = express();
 const isProduction = process.env.NODE_ENV === "production";
@@ -73,6 +74,8 @@ app.use(
   })
 );
 
+app.use(csrfProtection);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/cart", cartRoutes);
@@ -88,13 +91,13 @@ app.get("/api/health", (req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-initRealtimeTables()
+runMigrations()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
-    console.error("Failed to initialize realtime tables:", err);
+    console.error("Failed to run database migrations:", err);
     process.exit(1);
   });

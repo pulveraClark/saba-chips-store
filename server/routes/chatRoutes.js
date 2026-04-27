@@ -1,11 +1,19 @@
 const express = require("express");
 const router = express.Router();
 const { isAuthenticated } = require("../middleware/authMiddleware");
-const { getConversations, getMessages, sendMessage } = require("../controllers/chatController");
+const rateLimit = require("../middleware/rateLimitMiddleware");
+const {
+  getConversations,
+  getMessages,
+  sendMessage,
+  streamChatEvents,
+} = require("../controllers/chatController");
+const chatSendLimiter = rateLimit({ name: "chat-send", windowMs: 60 * 1000, max: 30 });
 
 router.get("/conversations", isAuthenticated, getConversations);
+router.get("/events", isAuthenticated, streamChatEvents);
 router.get("/messages", isAuthenticated, getMessages);
 router.get("/messages/:userId", isAuthenticated, getMessages);
-router.post("/messages", isAuthenticated, sendMessage);
+router.post("/messages", isAuthenticated, chatSendLimiter, sendMessage);
 
 module.exports = router;

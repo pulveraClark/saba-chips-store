@@ -10,15 +10,21 @@ const {
   resetPassword,
 } = require("../controllers/authController");
 const { isAuthenticated } = require("../middleware/authMiddleware");
+const rateLimit = require("../middleware/rateLimitMiddleware");
+const { getCsrfToken } = require("../middleware/csrfMiddleware");
 
-router.post("/register", registerUser);
-router.post("/login", loginUser);
+const authLimiter = rateLimit({ name: "auth", windowMs: 15 * 60 * 1000, max: 20 });
+const passwordLimiter = rateLimit({ name: "password", windowMs: 15 * 60 * 1000, max: 5 });
+
+router.post("/register", authLimiter, registerUser);
+router.post("/login", authLimiter, loginUser);
 router.post("/logout", logoutUser);
+router.get("/csrf-token", getCsrfToken);
 router.get("/me", isAuthenticated, getMe);
 router.put("/me", isAuthenticated, updateMe);
 
 // PASSWORD RESET
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password/:token", resetPassword);
+router.post("/forgot-password", passwordLimiter, forgotPassword);
+router.post("/reset-password/:token", passwordLimiter, resetPassword);
 
 module.exports = router;

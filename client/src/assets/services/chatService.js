@@ -15,3 +15,8 @@ export const sendMessage = async ({ receiverId, message }) => {
   const res = await api.post("/api/chat/messages", { receiverId, message });
   return res.data;
 };
+
+export const getChatEventsUrl = () => {
+  const baseURL = api.defaults.baseURL || "";
+  return `${baseURL}/api/chat/events`;
+};
