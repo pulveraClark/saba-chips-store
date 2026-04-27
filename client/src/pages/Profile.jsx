@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMe, updateMe } from "../assets/services/authService.js";
 import OrderTimeline from "../assets/components/OrderTimeline.jsx";
+import { createReview } from "../assets/services/reviewService.js";
 import {
   getUserOrders,
   requestOrderCancellation,
@@ -39,6 +40,8 @@ function Profile() {
   const [cancelReasonByOrder, setCancelReasonByOrder] = useState({});
   const [requestingCancelId, setRequestingCancelId] = useState(null);
   const [confirmCancelOrderId, setConfirmCancelOrderId] = useState(null);
+  const [reviewForms, setReviewForms] = useState({});
+  const [reviewingKey, setReviewingKey] = useState(null);
   const { notify } = useNotification();
 
   useEffect(() => {
@@ -157,6 +160,35 @@ function Profile() {
       });
     } finally {
       setRequestingCancelId(null);
+    }
+  };
+
+  const handleReviewSubmit = async (orderId, productId) => {
+    const key = `${orderId}-${productId}`;
+    const form = reviewForms[key] || { rating: 5, comment: "" };
+
+    try {
+      setReviewingKey(key);
+      await createReview({
+        orderId,
+        productId,
+        rating: Number(form.rating),
+        comment: form.comment || "",
+      });
+      await fetchProfile(true);
+      notify({
+        type: "success",
+        title: "Review submitted",
+        message: "Thanks for sharing your feedback.",
+      });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Review failed",
+        message: err?.response?.data?.message || "Could not submit review.",
+      });
+    } finally {
+      setReviewingKey(null);
     }
   };
 
@@ -402,8 +434,21 @@ function Profile() {
                             [order.id]: value,
                           }))
                         }
-                        onCancelRequest={() => setConfirmCancelOrderId(order.id)}
-                      />
+                      onCancelRequest={() => setConfirmCancelOrderId(order.id)}
+                      reviewForms={reviewForms}
+                      reviewingKey={reviewingKey}
+                      onReviewChange={(key, value) =>
+                        setReviewForms((prev) => ({
+                          ...prev,
+                          [key]: {
+                            rating: prev[key]?.rating || 5,
+                            comment: prev[key]?.comment || "",
+                            ...value,
+                          },
+                        }))
+                      }
+                      onReviewSubmit={handleReviewSubmit}
+                    />
                     ))}
                   </div>
                 )}
@@ -493,7 +538,17 @@ function ProfileInput({ label, value, onChange, type = "text", required = false,
   );
 }
 
-function OrderCard({ order, reason, requesting, onReasonChange, onCancelRequest }) {
+function OrderCard({
+  order,
+  reason,
+  requesting,
+  onReasonChange,
+  onCancelRequest,
+  reviewForms,
+  reviewingKey,
+  onReviewChange,
+  onReviewSubmit,
+}) {
   const canRequestCancel = ["pending", "confirmed"].includes(order.status);
   const statusClass = statusStyles[order.status] || "bg-gray-100 text-gray-800 border-gray-200";
 
@@ -517,20 +572,66 @@ function OrderCard({ order, reason, requesting, onReasonChange, onCancelRequest 
       </div>
 
       <div className="mt-5 rounded-xl border border-[#f1e3ca] bg-[#fffaf2]">
-        {order.items.map((item, index) => (
+        {order.items.map((item, index) => {
+          const reviewKey = `${order.id}-${item.product_id}`;
+          return (
           <div
             key={index}
-            className="flex items-center justify-between gap-4 border-b border-[#f1e3ca] px-4 py-3 last:border-0"
+            className="border-b border-[#f1e3ca] px-4 py-3 last:border-0"
           >
-            <div>
-              <p className="font-bold text-gray-900">{item.product}</p>
-              <p className="text-sm text-[#6d4c2f]">Qty {item.quantity}</p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="font-bold text-gray-900">{item.product}</p>
+                <p className="text-sm text-[#6d4c2f]">Qty {item.quantity}</p>
+              </div>
+              <p className="font-black text-[#8b5e34]">
+                PHP {Number(item.price).toLocaleString()}
+              </p>
             </div>
-            <p className="font-black text-[#8b5e34]">
-              PHP {Number(item.price).toLocaleString()}
-            </p>
+            {order.status === "delivered" && (
+              <div className="mt-3 rounded-xl bg-white p-3">
+                {item.review ? (
+                  <p className="text-sm font-bold text-[#6d4c2f]">
+                    Your rating: {"★".repeat(Number(item.review.rating))}
+                    {item.review.comment ? ` - ${item.review.comment}` : ""}
+                  </p>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-[120px_1fr_auto]">
+                    <select
+                      value={reviewForms[reviewKey]?.rating || 5}
+                      onChange={(e) =>
+                        onReviewChange(reviewKey, { rating: e.target.value })
+                      }
+                      className="rounded-xl border border-[#d8be96] px-3 py-2"
+                    >
+                      <option value="5">5 stars</option>
+                      <option value="4">4 stars</option>
+                      <option value="3">3 stars</option>
+                      <option value="2">2 stars</option>
+                      <option value="1">1 star</option>
+                    </select>
+                    <input
+                      value={reviewForms[reviewKey]?.comment || ""}
+                      onChange={(e) =>
+                        onReviewChange(reviewKey, { comment: e.target.value })
+                      }
+                      className="rounded-xl border border-[#d8be96] px-3 py-2"
+                      placeholder="Optional review"
+                    />
+                    <button
+                      onClick={() => onReviewSubmit(order.id, item.product_id)}
+                      disabled={reviewingKey === reviewKey}
+                      className="rounded-xl bg-[#8b5e34] px-4 py-2 font-bold text-white hover:bg-[#714a28] disabled:opacity-60"
+                    >
+                      {reviewingKey === reviewKey ? "Sending..." : "Review"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <details className="mt-4 rounded-xl border border-[#ead7b8] bg-white p-4">

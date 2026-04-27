@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { addToCart } from "../assets/services/cartService.js";
 import { askTasteAssistant } from "../assets/services/aiService.js";
+import {
+  addWishlistItem,
+  removeWishlistItem,
+} from "../assets/services/wishlistService.js";
 import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
@@ -73,6 +77,33 @@ function Home() {
         type: "error",
         title: "Add to Cart Failed",
         message: err?.response?.data?.message || "Please login to add to cart",
+      });
+    }
+  };
+
+  const handleWishlistToggle = async (product) => {
+    try {
+      if (product.is_wishlisted) {
+        await removeWishlistItem(product.id);
+        notify({
+          type: "info",
+          title: "Wishlist updated",
+          message: `${product.name} was removed from your wishlist.`,
+        });
+      } else {
+        await addWishlistItem(product.id);
+        notify({
+          type: "success",
+          title: "Wishlist updated",
+          message: `${product.name} was saved to your wishlist.`,
+        });
+      }
+      await refreshProducts();
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Wishlist Failed",
+        message: err?.response?.data?.message || "Please login to use wishlist.",
       });
     }
   };
@@ -240,7 +271,6 @@ function Home() {
                 }}
               />
               <div className="bg-[#fdf7ed] rounded-[1.5rem] p-10 text-center">
-                <div className="text-6xl mb-4">Saba</div>
                 <h3 className="text-4xl font-black text-[#8b5e34] mb-3">
                   SABA CHIPS
                 </h3>
@@ -319,7 +349,19 @@ function Home() {
                 key={product.id}
                 className="bg-white rounded-3xl shadow-lg border border-[#ead7b8] overflow-hidden hover:-translate-y-1 hover:shadow-2xl transition"
               >
-                <div className="h-64 bg-[#f7ecd8] flex items-center justify-center overflow-hidden">
+                <div className="relative h-64 bg-[#f7ecd8] flex items-center justify-center overflow-hidden">
+                  <button
+                    onClick={() => handleWishlistToggle(product)}
+                    className={`absolute right-4 top-4 z-10 rounded-full px-3 py-2 text-lg shadow-lg ${
+                      product.is_wishlisted
+                        ? "bg-red-600 text-white"
+                        : "bg-white text-[#8b5e34]"
+                    }`}
+                    title={product.is_wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                    aria-label={product.is_wishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                  >
+                    {product.is_wishlisted ? "♥" : "♡"}
+                  </button>
                   {product.image ? (
                     <img
                       src={getMediaUrl(product.image)}
@@ -339,6 +381,15 @@ function Home() {
                   <p className="text-[#6d4c2f] mb-4 min-h-[48px]">
                     {product.description || "Freshly cooked banana chips"}
                   </p>
+
+                  <div className="mb-4 flex items-center justify-between rounded-xl bg-[#fffaf2] px-3 py-2 text-sm">
+                    <span className="font-black text-[#8b5e34]">
+                      ★ {Number(product.average_rating || 0).toFixed(1)}
+                    </span>
+                    <span className="text-[#6d4c2f]">
+                      {product.review_count || 0} review(s)
+                    </span>
+                  </div>
 
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-3xl font-black text-[#8b5e34]">
