@@ -1,6 +1,8 @@
 require("dotenv").config();
 
 const express = require("express");
+const fs = require("fs");
+const path = require("path");
 const cors = require("cors");
 const session = require("express-session");
 const db = require("./config/db");
@@ -10,8 +12,19 @@ const adminRoutes = require("./routes/adminRoutes");
 const cartRoutes = require("./routes/cartRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const productRoutes = require("./routes/productRoutes");
+const aiRoutes = require("./routes/aiRoutes");
 
 const app = express();
+const isProduction = process.env.NODE_ENV === "production";
+const uploadsDir = path.join(__dirname, "uploads");
+const allowedOrigins = (process.env.CLIENT_URLS || process.env.CLIENT_URL || "http://localhost:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Test DB connection on startup
 db.connect((err) => {
@@ -23,30 +36,47 @@ db.connect((err) => {
   }
 });
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS origin not allowed"));
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.use(session({
-  secret: "sabachips_secret",
-  resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: false,
-    httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24
-  }
-}));
+if (isProduction) {
+  app.set("trust proxy", 1);
+}
+
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "sabachips_secret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      secure: isProduction,
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      maxAge: 1000 * 60 * 60 * 24,
+    },
+  })
+);
 
 app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/cart", cartRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/products", productRoutes);
-app.use("/uploads", express.static("uploads"));
+app.use("/api/ai", aiRoutes);
+app.use("/uploads", express.static(uploadsDir));
 
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date() });

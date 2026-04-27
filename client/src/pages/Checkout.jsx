@@ -4,6 +4,7 @@ import { getCart, clearCart } from "../assets/services/cartService.js";
 import { checkout as placeOrder } from "../assets/services/orderService.js";
 import { useCart } from "../context/CartContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
+import { getMediaUrl } from "../utils/media.js";
 
 function Checkout() {
   const [cart, setCart] = useState([]);
@@ -126,7 +127,7 @@ function Checkout() {
                   <div className="w-20 h-20 bg-[#f8f2e8] rounded-xl flex items-center justify-center overflow-hidden">
                     {item.image ? (
                       <img
-                        src={`http://localhost:5000${item.image}`}
+                        src={getMediaUrl(item.image)}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />

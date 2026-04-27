@@ -36,8 +36,10 @@ function AdminUsers() {
   const [logsPage, setLogsPage] = useState(1);
   const LOGS_PER_PAGE = 5;
 
+  // Users reload when page/search changes; the fetch function itself is intentionally stable enough here.
   useEffect(() => {
     fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, search]);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ function AdminUsers() {
       setUsers(sortByNewest(data.users || []));
       setPagination(data.pagination || {});
       setMessage("");
-    } catch (err) {
+    } catch {
       setMessage("❌ Admin access required. Please login as admin@sabachips.com");
     } finally {
       setLoading(false);
@@ -85,7 +87,7 @@ function AdminUsers() {
       setEditingId(null);
       fetchUsers();
       fetchLogs();
-    } catch (err) {
+    } catch {
       setMessage("❌ Update failed!");
     }
   };
@@ -97,7 +99,7 @@ function AdminUsers() {
         setMessage("✅ User deleted successfully!");
         fetchUsers();
         fetchLogs();
-      } catch (err) {
+      } catch {
         setMessage("❌ Delete failed!");
       }
     }

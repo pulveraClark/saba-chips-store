@@ -5,7 +5,6 @@ import { getAllUsers, getAdminSummary } from "../assets/services/adminService.js
 import { useProducts } from "../context/ProductContext.jsx";
 
 function Admin() {
-  const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({
     totalUsers: 0,
     totalProducts: 0,
@@ -26,8 +25,10 @@ function Admin() {
 
   const { refreshProducts } = useProducts();
 
+  // The dashboard intentionally loads once on mount and refreshes manually after that.
   useEffect(() => {
     loadAdminData(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAdminData = async (isInitialLoad = false) => {
@@ -43,12 +44,11 @@ function Admin() {
         setAdminName(me.user.name);
       }
 
-      const [{ users }, summaryData] = await Promise.all([
+      const [, summaryData] = await Promise.all([
         getAllUsers(),
         getAdminSummary(),
       ]);
 
-      setUsers(users || []);
       setSummary(summaryData || {});
       await refreshProducts();
 
@@ -58,7 +58,7 @@ function Admin() {
       } else {
         setMessage("");
       }
-    } catch (err) {
+    } catch {
       setMessage("❌ Admin access required. Please login as admin@sabachips.com");
     } finally {
       setLoading(false);

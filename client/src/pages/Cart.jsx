@@ -7,6 +7,7 @@ import {
   clearCart,
 } from "../assets/services/cartService.js";
 import { useCart } from "../context/CartContext.jsx";
+import { getMediaUrl } from "../utils/media.js";
 
 function Cart() {
   const [cart, setCart] = useState([]);
@@ -125,7 +126,7 @@ function Cart() {
                     <div className="w-24 h-24 bg-[#f8f2e8] rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0">
                       {item.image ? (
                         <img
-                          src={`http://localhost:5000${item.image}`}
+                          src={getMediaUrl(item.image)}
                           alt={item.name}
                           className="w-full h-full object-cover"
                         />

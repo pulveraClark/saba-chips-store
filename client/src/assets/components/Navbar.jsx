@@ -12,23 +12,23 @@ function Navbar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    checkAuth();
-  }, []);
+    const loadAuth = async () => {
+      try {
+        const data = await getMe();
+        setUser(data.user);
 
-  const checkAuth = async () => {
-    try {
-      const data = await getMe();
-      setUser(data.user);
-
-      if (data.user) {
-        await refreshCartCount();
+        if (data.user) {
+          await refreshCartCount();
+        }
+      } catch {
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    void loadAuth();
+  }, [refreshCartCount]);
 
   const handleLogout = async () => {
     try {
@@ -36,7 +36,7 @@ function Navbar() {
       setUser(null);
       navigate("/login");
       window.location.reload();
-    } catch (err) {
+    } catch {
       navigate("/login");
     }
     setDropdownOpen(false);
