@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../assets/services/authService.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 function Register() {
   const navigate = useNavigate();
+  const { notify } = useNotification();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -27,6 +29,11 @@ function Register() {
 
     if (!passwordsMatch) {
       setError("Passwords do not match!");
+      notify({
+        type: "warning",
+        title: "Password Mismatch",
+        message: "Please make sure both password fields match.",
+      });
       return;
     }
 
@@ -40,13 +47,22 @@ function Register() {
         password: form.password,
       });
 
-      alert(res.message);
-
       if (res.message === "User registered successfully") {
+        notify({
+          type: "success",
+          title: "Registration Successful",
+          message: "Your account has been created. You can now log in.",
+        });
         navigate("/login");
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Registration failed");
+      const message = err.response?.data?.message || "Registration failed";
+      setError(message);
+      notify({
+        type: "error",
+        title: "Registration Failed",
+        message,
+      });
     } finally {
       setLoading(false);
     }

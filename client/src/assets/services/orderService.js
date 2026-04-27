@@ -20,3 +20,18 @@ export const updateOrderStatus = async (orderId, status) => {
   const res = await api.put(`/api/orders/admin/${orderId}/status`, { status });
   return res.data;
 };
+
+export const requestOrderCancellation = async (orderId, reason) => {
+  const res = await api.post(`/api/orders/${orderId}/cancellation-requests`, {
+    reason,
+  });
+  return res.data;
+};
+
+export const reviewCancellationRequest = async (requestId, decision, adminNote = "") => {
+  const res = await api.put(`/api/orders/admin/cancellation-requests/${requestId}`, {
+    decision,
+    adminNote,
+  });
+  return res.data;
+};

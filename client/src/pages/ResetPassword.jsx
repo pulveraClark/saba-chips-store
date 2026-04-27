@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { resetPassword } from "../assets/services/authService.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 function ResetPassword() {
   const { token } = useParams();
   const navigate = useNavigate();
+  const { notify } = useNotification();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -18,6 +20,11 @@ function ResetPassword() {
 
     if (!passwordsMatch) {
       setMessage("Passwords do not match");
+      notify({
+        type: "warning",
+        title: "Password Mismatch",
+        message: "Please make sure both password fields match.",
+      });
       return;
     }
 
@@ -26,10 +33,20 @@ function ResetPassword() {
 
     try {
       const res = await resetPassword(token, password);
-      alert(res.message);
+      notify({
+        type: "success",
+        title: "Password Reset Successful",
+        message: res.message,
+      });
       navigate("/login");
     } catch (err) {
-      setMessage(err?.response?.data?.message || "Reset failed");
+      const errorMessage = err?.response?.data?.message || "Reset failed";
+      setMessage(errorMessage);
+      notify({
+        type: "error",
+        title: "Reset Failed",
+        message: errorMessage,
+      });
     } finally {
       setLoading(false);
     }

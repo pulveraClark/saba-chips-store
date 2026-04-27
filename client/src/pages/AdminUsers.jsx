@@ -6,6 +6,7 @@ import {
   updateUser,
   deleteUser,
 } from "../assets/services/adminService.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { sortByNewest } from "../utils/sortByNewest.js";
 import {
   exportToCsv,
@@ -24,7 +25,6 @@ function AdminUsers() {
   const [editForm, setEditForm] = useState({ name: "", email: "" });
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
-
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({
     total: 0,
@@ -32,11 +32,11 @@ function AdminUsers() {
     limit: 5,
     totalPages: 1,
   });
-
   const [logsPage, setLogsPage] = useState(1);
-  const LOGS_PER_PAGE = 5;
 
-  // Users reload when page/search changes; the fetch function itself is intentionally stable enough here.
+  const LOGS_PER_PAGE = 5;
+  const { notify } = useNotification();
+
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -54,7 +54,7 @@ function AdminUsers() {
       setPagination(data.pagination || {});
       setMessage("");
     } catch {
-      setMessage("❌ Admin access required. Please login as admin@sabachips.com");
+      setMessage("Admin access required. Please login as admin@sabachips.com");
     } finally {
       setLoading(false);
       setUsersRefreshing(false);
@@ -83,12 +83,22 @@ function AdminUsers() {
   const handleUpdate = async (id) => {
     try {
       await updateUser(id, editForm);
-      setMessage("✅ User updated successfully!");
+      setMessage("User updated successfully!");
+      notify({
+        type: "success",
+        title: "User Updated",
+        message: `${editForm.name} was updated successfully.`,
+      });
       setEditingId(null);
       fetchUsers();
       fetchLogs();
     } catch {
-      setMessage("❌ Update failed!");
+      setMessage("Update failed!");
+      notify({
+        type: "error",
+        title: "Update Failed",
+        message: "The user could not be updated.",
+      });
     }
   };
 
@@ -96,11 +106,21 @@ function AdminUsers() {
     if (confirm(`Delete user ID ${id}? This cannot be undone.`)) {
       try {
         await deleteUser(id);
-        setMessage("✅ User deleted successfully!");
+        setMessage("User deleted successfully!");
+        notify({
+          type: "success",
+          title: "User Deleted",
+          message: `User ID ${id} was deleted successfully.`,
+        });
         fetchUsers();
         fetchLogs();
       } catch {
-        setMessage("❌ Delete failed!");
+        setMessage("Delete failed!");
+        notify({
+          type: "error",
+          title: "Delete Failed",
+          message: "The user could not be deleted.",
+        });
       }
     }
   };
@@ -201,7 +221,7 @@ function AdminUsers() {
             to="/admin"
             className="inline-block text-[#fff1df] hover:text-white mb-4"
           >
-            ← Back to Admin Hub
+            Back to Admin Hub
           </Link>
           <h1 className="text-4xl md:text-5xl font-black mb-3">
             User Management
@@ -214,7 +234,8 @@ function AdminUsers() {
         {message && (
           <div
             className={`mx-auto max-w-3xl p-4 rounded-2xl shadow-md mb-8 text-center font-semibold ${
-              message.includes("✅")
+              !message.toLowerCase().includes("failed") &&
+              !message.toLowerCase().includes("required")
                 ? "bg-green-100 border border-green-300 text-green-800"
                 : "bg-red-100 border border-red-300 text-red-800"
             }`}
@@ -226,7 +247,7 @@ function AdminUsers() {
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-[#ead7b8] mb-10">
           <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] p-6 text-white">
             <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-              <h2 className="text-3xl font-black">👥 Users</h2>
+              <h2 className="text-3xl font-black">Users</h2>
               <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
                 <input
                   type="text"
@@ -240,7 +261,7 @@ function AdminUsers() {
                   disabled={usersRefreshing}
                   className="px-4 py-3 rounded-2xl bg-white text-[#8b5e34] font-bold hover:bg-[#f8f2e8] disabled:opacity-60"
                 >
-                  {usersRefreshing ? "↻..." : "↻"}
+                  {usersRefreshing ? "Refreshing..." : "Refresh"}
                 </button>
               </div>
             </div>
@@ -269,7 +290,7 @@ function AdminUsers() {
 
           {users.length === 0 ? (
             <div className="text-center py-20">
-              <div className="text-6xl mb-4">👥</div>
+              <div className="text-6xl mb-4">Users</div>
               <h3 className="text-2xl font-bold text-[#8b5e34] mb-2">
                 {search ? "No matching users" : "No users found"}
               </h3>
@@ -416,13 +437,13 @@ function AdminUsers() {
         <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-[#ead7b8]">
           <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] p-6 text-white">
             <div className="flex items-center justify-between gap-4">
-              <h2 className="text-3xl font-black">📝 User Activity Logs</h2>
+              <h2 className="text-3xl font-black">User Activity Logs</h2>
               <button
                 onClick={() => fetchLogs(true)}
                 disabled={logsRefreshing}
                 className="px-4 py-3 rounded-2xl bg-white text-[#8b5e34] font-bold hover:bg-[#f8f2e8] disabled:opacity-60"
               >
-                {logsRefreshing ? "↻..." : "↻"}
+                {logsRefreshing ? "Refreshing..." : "Refresh"}
               </button>
             </div>
           </div>

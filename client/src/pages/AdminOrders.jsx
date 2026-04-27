@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getAllOrders,
+  reviewCancellationRequest,
   updateOrderStatus,
 } from "../assets/services/orderService.js";
+import OrderTimeline from "../assets/components/OrderTimeline.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { sortByNewest } from "../utils/sortByNewest.js";
 
 function AdminOrders() {
@@ -11,7 +14,10 @@ function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
+  const [reviewingRequestId, setReviewingRequestId] = useState(null);
+  const [adminNotes, setAdminNotes] = useState({});
   const [page, setPage] = useState(1);
+  const { notify } = useNotification();
 
   const ORDERS_PER_PAGE = 5;
 
@@ -37,10 +43,40 @@ function AdminOrders() {
       setUpdatingId(orderId);
       await updateOrderStatus(orderId, newStatus);
       await fetchOrders();
+      notify({
+        type: "success",
+        title: "Order Updated",
+        message: `Order #${orderId} is now marked as ${newStatus}.`,
+      });
     } catch (err) {
-      alert(err?.response?.data?.message || "Failed to update order status");
+      notify({
+        type: "error",
+        title: "Update Failed",
+        message: err?.response?.data?.message || "Failed to update order status",
+      });
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleReviewCancellation = async (requestId, decision) => {
+    try {
+      setReviewingRequestId(requestId);
+      await reviewCancellationRequest(requestId, decision, adminNotes[requestId] || "");
+      await fetchOrders();
+      notify({
+        type: "success",
+        title: "Request reviewed",
+        message: `Cancellation request was ${decision}.`,
+      });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Review Failed",
+        message: err?.response?.data?.message || "Failed to review cancellation request",
+      });
+    } finally {
+      setReviewingRequestId(null);
     }
   };
 
@@ -216,6 +252,87 @@ function AdminOrders() {
                           </span>
                         )}
                       </div>
+                    </div>
+
+                    {order.cancellation_request && (
+                      <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-black uppercase tracking-[0.2em] text-amber-800">
+                              Cancellation Request
+                            </p>
+                            <p className="mt-2 text-[#6d4c2f]">
+                              <span className="font-bold">Status:</span>{" "}
+                              <span className="capitalize">
+                                {order.cancellation_request.status}
+                              </span>
+                            </p>
+                            <p className="mt-1 text-[#6d4c2f]">
+                              <span className="font-bold">Reason:</span>{" "}
+                              {order.cancellation_request.reason}
+                            </p>
+                            {order.cancellation_request.admin_note && (
+                              <p className="mt-1 text-[#6d4c2f]">
+                                <span className="font-bold">Admin note:</span>{" "}
+                                {order.cancellation_request.admin_note}
+                              </p>
+                            )}
+                          </div>
+
+                          {order.cancellation_request.status === "pending" && (
+                            <div className="w-full md:w-96 space-y-3">
+                              <textarea
+                                value={adminNotes[order.cancellation_request.id] || ""}
+                                onChange={(e) =>
+                                  setAdminNotes((prev) => ({
+                                    ...prev,
+                                    [order.cancellation_request.id]: e.target.value,
+                                  }))
+                                }
+                                rows={2}
+                                className="w-full rounded-2xl border border-amber-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-600"
+                                placeholder="Optional admin note"
+                              />
+                              <div className="flex gap-3">
+                                <button
+                                  onClick={() =>
+                                    handleReviewCancellation(
+                                      order.cancellation_request.id,
+                                      "approved"
+                                    )
+                                  }
+                                  disabled={reviewingRequestId === order.cancellation_request.id}
+                                  className="flex-1 rounded-xl bg-green-600 px-4 py-3 text-white font-black hover:bg-green-700 disabled:opacity-60"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleReviewCancellation(
+                                      order.cancellation_request.id,
+                                      "rejected"
+                                    )
+                                  }
+                                  disabled={reviewingRequestId === order.cancellation_request.id}
+                                  className="flex-1 rounded-xl bg-red-600 px-4 py-3 text-white font-black hover:bg-red-700 disabled:opacity-60"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mt-6 border-t border-[#ead7b8] pt-5">
+                      <p className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#7a5331]">
+                        Order Timeline
+                      </p>
+                      <OrderTimeline
+                        status={order.status}
+                        timeline={order.timeline || []}
+                      />
                     </div>
                   </div>
                 ))}

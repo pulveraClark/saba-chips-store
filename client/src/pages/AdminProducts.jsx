@@ -5,6 +5,7 @@ import {
   updateProduct,
   deleteProduct,
 } from "../assets/services/productService.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
 import { sortByNewest } from "../utils/sortByNewest.js";
 import { getMediaUrl } from "../utils/media.js";
@@ -15,6 +16,7 @@ function AdminProducts() {
   const [refreshing, setRefreshing] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [page, setPage] = useState(1);
+  const { notify } = useNotification();
 
   const PRODUCTS_PER_PAGE = 5;
 
@@ -46,7 +48,11 @@ function AdminProducts() {
       if (showRefresh) setRefreshing(true);
       await refreshProducts();
     } catch {
-      alert("Failed to fetch products");
+      notify({
+        type: "error",
+        title: "Load Failed",
+        message: "Failed to fetch products.",
+      });
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,7 +87,11 @@ function AdminProducts() {
 
     try {
       await updateProduct(editingId, formData);
-      alert("Product updated!");
+      notify({
+        type: "success",
+        title: "Product Updated",
+        message: `${editForm.name} was updated successfully.`,
+      });
       setEditingId(null);
       setEditForm({
         name: "",
@@ -93,7 +103,11 @@ function AdminProducts() {
       });
       await refreshProducts();
     } catch (err) {
-      alert(err?.response?.data?.message || "Update failed");
+      notify({
+        type: "error",
+        title: "Update Failed",
+        message: err?.response?.data?.message || "Update failed",
+      });
     }
   };
 
@@ -101,10 +115,18 @@ function AdminProducts() {
     if (confirm("Delete this product?")) {
       try {
         await deleteProduct(id);
-        alert("Product deleted!");
+        notify({
+          type: "success",
+          title: "Product Deleted",
+          message: "The product was removed successfully.",
+        });
         await refreshProducts();
       } catch (err) {
-        alert(err?.response?.data?.message || "Delete failed");
+        notify({
+          type: "error",
+          title: "Delete Failed",
+          message: err?.response?.data?.message || "Delete failed",
+        });
       }
     }
   };
@@ -123,7 +145,11 @@ function AdminProducts() {
 
     try {
       await createProduct(formData);
-      alert("Product created!");
+      notify({
+        type: "success",
+        title: "Product Created",
+        message: `${newProduct.name} was added successfully.`,
+      });
       setNewProduct({
         name: "",
         price: "",
@@ -133,7 +159,11 @@ function AdminProducts() {
       });
       await refreshProducts();
     } catch (err) {
-      alert(err?.response?.data?.message || "Create failed");
+      notify({
+        type: "error",
+        title: "Create Failed",
+        message: err?.response?.data?.message || "Create failed",
+      });
     }
   };
 

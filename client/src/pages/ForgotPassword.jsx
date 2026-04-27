@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { forgotPassword } from "../assets/services/authService.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const { notify } = useNotification();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -15,8 +17,20 @@ function ForgotPassword() {
     try {
       const res = await forgotPassword(email);
       setMessage(res.message);
+      notify({
+        type: "success",
+        title: "Reset Email Sent",
+        message: res.message,
+      });
     } catch (err) {
-      setMessage(err?.response?.data?.message || "Failed to send reset email");
+      const errorMessage =
+        err?.response?.data?.message || "Failed to send reset email";
+      setMessage(errorMessage);
+      notify({
+        type: "error",
+        title: "Request Failed",
+        message: errorMessage,
+      });
     } finally {
       setLoading(false);
     }
