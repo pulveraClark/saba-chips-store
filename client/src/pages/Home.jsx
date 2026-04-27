@@ -9,7 +9,41 @@ import {
 import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
+import { getTopSellingProducts } from "../assets/services/productService.js";
 import { getMediaUrl } from "../utils/media.js";
+
+const flavors = ["Cheese", "Sour Cream", "Barbecue", "Chili BBQ", "Sour Cheese", "Plain"];
+
+const iconPaths = {
+  assistant: "M12 3v3m7 4v5a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-5a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3Zm-8 4h.01M15 14h.01M9 18h6",
+  bag: "M6 8h12l-1 13H7L6 8Zm3 0a3 3 0 0 1 6 0",
+  check: "m5 13 4 4L19 7",
+  heart: "M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 22l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z",
+  heartOutline:
+    "M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 22l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z",
+  minus: "M5 12h14",
+  plus: "M12 5v14m-7-7h14",
+  search: "m21 21-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z",
+  send: "M22 2 11 13m11-11-7 20-4-9-9-4 20-7Z",
+  star: "m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.8 1-6.1-4.4-4.3 6.1-.9L12 3Z",
+};
+
+function Icon({ name, className = "h-5 w-5", fill = "none" }) {
+  return (
+    <svg
+      className={className}
+      fill={fill}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d={iconPaths[name]} />
+    </svg>
+  );
+}
 
 function Home() {
   const [loading, setLoading] = useState(true);
@@ -19,6 +53,8 @@ function Home() {
   const [searchTerm, setSearchTerm] = useState("");
   const [stockFilter, setStockFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const [quantities, setQuantities] = useState({});
+  const [topSellingProducts, setTopSellingProducts] = useState([]);
   const [chatMessages, setChatMessages] = useState([
     {
       sender: "ai",
@@ -26,15 +62,15 @@ function Home() {
       createdAt: new Date().toISOString(),
     },
   ]);
+
   const aiQuickPrompts = [
     "What flavors are available?",
-    "What are the best sellers?",
+    "Show current best sellers",
     "Show prices",
-    "Suggest for first-time buyer",
+    "Recommend a first order",
   ];
 
   const chatEndRef = useRef(null);
-
   const { refreshCartCount } = useCart();
   const { products, refreshProducts } = useProducts();
   const { notify } = useNotification();
@@ -45,6 +81,14 @@ function Home() {
   }, []);
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      refreshTopSellingProducts();
+    }, 30000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     if (chatOpen) {
       chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
@@ -52,7 +96,11 @@ function Home() {
 
   const loadProducts = async () => {
     try {
-      await refreshProducts();
+      const [, topSelling] = await Promise.all([
+        refreshProducts(),
+        getTopSellingProducts(5),
+      ]);
+      setTopSellingProducts(topSelling || []);
     } catch (err) {
       console.error("Products fetch failed:", err);
     } finally {
@@ -60,17 +108,35 @@ function Home() {
     }
   };
 
-  const handleAddToCart = async (productId) => {
+  const refreshTopSellingProducts = async () => {
     try {
-      await addToCart(productId);
+      const topSelling = await getTopSellingProducts(5);
+      setTopSellingProducts(topSelling || []);
+    } catch (err) {
+      console.error("Top selling products refresh failed:", err);
+    }
+  };
+
+  const productQuantity = (product) => quantities[product.id] || 1;
+
+  const setProductQuantity = (product, quantity) => {
+    const stock = Number(product.stock || 0);
+    const nextQuantity = Math.max(1, Math.min(Number(quantity) || 1, stock || 1));
+    setQuantities((prev) => ({ ...prev, [product.id]: nextQuantity }));
+  };
+
+  const handleAddToCart = async (product) => {
+    try {
+      await addToCart(product.id, productQuantity(product));
       await refreshCartCount();
       await refreshProducts();
+      const topSelling = await getTopSellingProducts(5);
+      setTopSellingProducts(topSelling || []);
 
-      const selectedProduct = products.find((p) => p.id === productId);
       notify({
         type: "success",
         title: "Added to Cart",
-        message: `${selectedProduct?.name || "Product"} was added to your cart.`,
+        message: `${product.name || "Product"} was added to your cart.`,
       });
     } catch (err) {
       notify({
@@ -113,7 +179,6 @@ function Home() {
     if (!nextMessage.trim()) return;
 
     const userQuestion = nextMessage.trim();
-
     setChatMessages((prev) => [
       ...prev,
       { sender: "user", text: userQuestion, createdAt: new Date().toISOString() },
@@ -163,6 +228,25 @@ function Home() {
       minute: "2-digit",
     });
 
+  const availableProducts = products.filter((product) => Number(product.stock) > 0);
+  const lowStockCount = products.filter(
+    (product) => Number(product.stock) > 0 && Number(product.stock) <= 5
+  ).length;
+  const highestSoldQuantity = Number(topSellingProducts[0]?.total_quantity || 0);
+  const bestSellerIds = new Set(
+    topSellingProducts
+      .filter(
+        (product) =>
+          highestSoldQuantity > 0 &&
+          Number(product.total_quantity || 0) === highestSoldQuantity
+      )
+      .map((product) => Number(product.id))
+  );
+  const bestSeller = topSellingProducts[0]
+    ? products.find((product) => Number(product.id) === Number(topSellingProducts[0].id)) ||
+      topSellingProducts[0]
+    : null;
+
   const visibleProducts = [...products]
     .filter((product) => {
       const matchesSearch =
@@ -184,6 +268,9 @@ function Home() {
       if (sortBy === "price-asc") return Number(a.price) - Number(b.price);
       if (sortBy === "price-desc") return Number(b.price) - Number(a.price);
       if (sortBy === "name") return String(a.name).localeCompare(String(b.name));
+      if (sortBy === "rating") {
+        return Number(b.average_rating || 0) - Number(a.average_rating || 0);
+      }
       return (
         new Date(b.created_at || 0) - new Date(a.created_at || 0) ||
         Number(b.id) - Number(a.id)
@@ -192,117 +279,162 @@ function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f8f2e8]">
-        <div className="text-2xl text-[#8b5e34] animate-pulse">
-          Loading products...
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f2e8]">
+        <div className="rounded-2xl border border-[#ead7b8] bg-white px-6 py-4 text-xl font-black text-[#8b5e34] shadow-sm">
+          Loading fresh products...
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f2e8] relative">
-      <section className="bg-gradient-to-b from-[#f1d7ac] to-[#f8f2e8] pt-28 pb-20">
-        <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+    <div className="relative min-h-screen bg-[#f8f2e8]">
+      <section className="bg-[#f8f2e8] pt-14">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-6 pb-12 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
-            <div className="inline-block bg-[#fff7eb] text-[#8b5e34] px-4 py-2 rounded-full font-semibold text-sm shadow-sm mb-6">
-              Freshly Cooked Banana Chips
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#ead7b8] bg-white px-4 py-2 text-sm font-black text-[#8b5e34] shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-[#6f8f3d]"></span>
+              Freshly cooked in Catarman, Liloan
             </div>
 
-            <h1 className="text-5xl md:text-7xl font-black text-[#8b5e34] leading-tight mb-6">
-              Saba Chips
+            <h1 className="mb-6 text-5xl font-black leading-tight text-[#5f432c] md:text-7xl">
+              Real Cebu comfort snack, packed fresh for your day.
             </h1>
 
-            <p className="text-xl md:text-2xl text-[#6d4c2f] font-medium mb-3">
-              Catarman, Liloan, Cebu
+            <p className="mb-8 max-w-2xl text-lg leading-relaxed text-[#6d4c2f] md:text-xl">
+              Crispy Saba Chips in classic and flavored packs, made for quick
+              cravings, pasalubong, office snacks, and family merienda.
             </p>
 
-            <p className="text-base md:text-lg text-[#6d4c2f] leading-relaxed mb-8 max-w-2xl">
-              Crispy, flavorful, and freshly cooked banana chips made for every
-              snack lover. Try our crowd favorites and order before we sell out
-              again.
-            </p>
-
-            <div className="bg-white/80 rounded-3xl p-6 shadow-lg border border-[#ead7b8] mb-8">
-              <h2 className="text-xl font-bold text-[#8b5e34] mb-4">
-                Available Flavors
-              </h2>
-
-              <div className="grid sm:grid-cols-2 gap-3 text-[#5f432c]">
-                <div>Cheese</div>
-                <div>Sour Cream</div>
-                <div>Barbecue</div>
-                <div>Chili BBQ</div>
-                <div>Sour Cheese</div>
-                <div>Plain (No sugar, No flavor)</div>
-              </div>
-            </div>
-
-            <div className="bg-[#fff7eb] border border-[#ead7b8] rounded-2xl p-5 mb-8 shadow-sm">
-              <p className="text-[#7a5331] font-semibold mb-2">Free delivery</p>
-              <p className="text-[#6d4c2f]">Consolacion, Liloan & Compostela</p>
+            <div className="mb-8 grid gap-3 sm:grid-cols-3">
+              {[
+                ["Free delivery", "Consolacion, Liloan, Compostela"],
+                ["Current stock", `${availableProducts.length} items available`],
+                ["Fast updates", "Order status and messages"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="rounded-2xl border border-[#ead7b8] bg-white/85 p-4 shadow-sm"
+                >
+                  <p className="text-sm font-black text-[#8b5e34]">{label}</p>
+                  <p className="mt-1 text-sm text-[#6d4c2f]">{value}</p>
+                </div>
+              ))}
             </div>
 
             <div className="flex flex-wrap gap-4">
+              <a
+                href="#products"
+                className="inline-flex items-center justify-center rounded-2xl bg-[#8b5e34] px-8 py-4 font-black text-white shadow-lg transition hover:bg-[#714a28]"
+              >
+                Shop Available Packs
+              </a>
               <Link
                 to="/cart"
-                className="bg-[#8b5e34] text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:bg-[#714a28] transition"
+                className="inline-flex items-center justify-center rounded-2xl border border-[#d8be96] bg-white px-8 py-4 font-black text-[#8b5e34] transition hover:bg-[#fff7eb]"
               >
                 View Cart
               </Link>
-
-              <a
-                href="#products"
-                className="bg-white text-[#8b5e34] px-8 py-4 rounded-2xl font-semibold border border-[#d8be96] hover:bg-[#fff7eb] transition"
-              >
-                Shop Now
-              </a>
             </div>
           </div>
 
-          <div className="flex justify-center">
-            <div className="w-full max-w-xl bg-[#e7c391] rounded-[2rem] p-4 shadow-2xl">
-              <img
-                src="/saba-banner.jpg"
-                alt="Saba Chips"
-                className="w-full h-[420px] object-cover rounded-[1.5rem]"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-              <div className="bg-[#fdf7ed] rounded-[1.5rem] p-10 text-center">
-                <h3 className="text-4xl font-black text-[#8b5e34] mb-3">
-                  SABA CHIPS
-                </h3>
-                <p className="text-[#6d4c2f] text-xl font-medium mb-2">
-                  Freshly Cooked Banana Chips
-                </p>
-                <p className="text-[#6d4c2f]">Catarman, Liloan, Cebu</p>
+          <div className="relative">
+            <div className="overflow-hidden rounded-[2rem] border border-[#ead7b8] bg-white shadow-2xl">
+              <div className="relative h-[430px] bg-[#ead7b8]">
+                <img
+                  src="/saba-banner.jpg"
+                  alt="Saba Chips packs"
+                  className="h-full w-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
+                />
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#3f2a18]/85 to-transparent p-6 text-white">
+                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#ffe2ad]">
+                    Saba Chips
+                  </p>
+                  <p className="mt-2 text-3xl font-black">Fresh local packs</p>
+                </div>
               </div>
+              {bestSeller && (
+                <div className="grid gap-3 border-t border-[#ead7b8] bg-[#fffaf2] p-5 sm:grid-cols-[1fr_auto] sm:items-center">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-[0.18em] text-[#9a7654]">
+                      Customer favorite
+                    </p>
+                    <p className="text-xl font-black text-[#5f432c]">
+                      {bestSeller.name}
+                    </p>
+                  </div>
+                  <a
+                    href="#products"
+                    className="rounded-full bg-[#6f8f3d] px-5 py-2 text-center text-sm font-black text-white"
+                  >
+                    Order now
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </section>
 
-      <section id="products" className="py-20 bg-[#fffaf2]">
-        <div className="max-w-6xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <h2 className="text-4xl md:text-5xl font-black text-[#8b5e34] mb-4">
-              Our Products
-            </h2>
-            <p className="text-lg text-[#6d4c2f] max-w-2xl mx-auto">
-              Message us now before we sell out again.
-            </p>
+      <section className="border-y border-[#ead7b8] bg-white">
+        <div className="mx-auto grid max-w-6xl gap-4 px-6 py-8 md:grid-cols-3">
+          {[
+            ["Choose your flavor", "Pick from cheese, sour cream, barbecue, chili BBQ, sour cheese, or plain."],
+            ["Checkout securely", "Add delivery details and choose Cash on Delivery."],
+            ["Track your order", "Get order updates from pending to delivered."],
+          ].map(([title, text]) => (
+            <div key={title} className="flex gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f1dfc2] text-[#8b5e34]">
+                <Icon name="check" className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="font-black text-[#5f432c]">{title}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-[#6d4c2f]">{text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="products" className="bg-[#fffaf2] py-16">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="mb-2 text-sm font-black uppercase tracking-[0.2em] text-[#9a7654]">
+                Storefront
+              </p>
+              <h2 className="text-4xl font-black text-[#5f432c] md:text-5xl">
+                Shop Saba Chips
+              </h2>
+              <p className="mt-3 max-w-2xl text-[#6d4c2f]">
+                Browse current stock, order by pack, and save favorites for your
+                next merienda run.
+              </p>
+            </div>
+            {lowStockCount > 0 && (
+              <div className="rounded-2xl border border-[#e8c475] bg-[#fff6da] px-5 py-3 text-sm font-bold text-[#8b5e34]">
+                {lowStockCount} product(s) are almost sold out
+              </div>
+            )}
           </div>
 
-          <div className="mb-10 grid gap-4 rounded-3xl border border-[#ead7b8] bg-white p-5 shadow-sm md:grid-cols-[1.3fr_0.8fr_0.8fr]">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search by product or flavor..."
-              className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
-            />
+          <div className="mb-8 grid gap-4 rounded-[1.5rem] border border-[#ead7b8] bg-white p-4 shadow-sm md:grid-cols-[1.4fr_0.8fr_0.8fr]">
+            <label className="relative block">
+              <Icon
+                name="search"
+                className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#9a7654]"
+              />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search product or flavor"
+                className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] py-4 pl-12 pr-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
+              />
+            </label>
 
             <select
               value={stockFilter}
@@ -321,13 +453,14 @@ function Home() {
               className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
             >
               <option value="newest">Newest first</option>
+              <option value="rating">Highest rated</option>
               <option value="price-asc">Price: low to high</option>
               <option value="price-desc">Price: high to low</option>
               <option value="name">Name A-Z</option>
             </select>
           </div>
 
-          <div className="mb-8 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-[#6d4c2f]">
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-3 text-sm font-bold text-[#6d4c2f]">
             <p>{visibleProducts.length} product(s) shown</p>
             {(searchTerm || stockFilter !== "all" || sortBy !== "newest") && (
               <button
@@ -336,106 +469,194 @@ function Home() {
                   setStockFilter("all");
                   setSortBy("newest");
                 }}
-                className="rounded-full border border-[#d8be96] px-4 py-2 hover:bg-[#fff7eb]"
+                className="rounded-full border border-[#d8be96] bg-white px-4 py-2 hover:bg-[#fff7eb]"
               >
                 Reset filters
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {visibleProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-3xl shadow-lg border border-[#ead7b8] overflow-hidden hover:-translate-y-1 hover:shadow-2xl transition"
-              >
-                <div className="relative h-64 bg-[#f7ecd8] flex items-center justify-center overflow-hidden">
-                  <button
-                    onClick={() => handleWishlistToggle(product)}
-                    className={`absolute right-4 top-4 z-10 rounded-full px-3 py-2 text-lg shadow-lg ${
-                      product.is_wishlisted
-                        ? "bg-red-600 text-white"
-                        : "bg-white text-[#8b5e34]"
-                    }`}
-                    title={product.is_wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                    aria-label={product.is_wishlisted ? "Remove from wishlist" : "Add to wishlist"}
-                  >
-                    {product.is_wishlisted ? "♥" : "♡"}
-                  </button>
-                  {product.image ? (
-                    <img
-                      src={getMediaUrl(product.image)}
-                      alt={product.name}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-7xl">Chips</div>
-                  )}
-                </div>
+          <div className="grid grid-cols-1 gap-7 md:grid-cols-2 lg:grid-cols-3">
+            {visibleProducts.map((product) => {
+              const stock = Number(product.stock || 0);
+              const rating = Number(product.average_rating || 0).toFixed(1);
+              const isBestSeller = bestSellerIds.has(Number(product.id));
 
-                <div className="p-7">
-                  <h3 className="text-2xl font-bold text-[#8b5e34] mb-2">
-                    {product.name}
-                  </h3>
+              return (
+                <div
+                  key={product.id}
+                  className="overflow-hidden rounded-[1.5rem] border border-[#ead7b8] bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className="relative h-64 overflow-hidden bg-[#f7ecd8]">
+                    <button
+                      onClick={() => handleWishlistToggle(product)}
+                      className={`absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full shadow-lg transition ${
+                        product.is_wishlisted
+                          ? "bg-[#b6402e] text-white"
+                          : "bg-white text-[#8b5e34] hover:bg-[#fff4df]"
+                      }`}
+                      title={
+                        product.is_wishlisted
+                          ? "Remove from wishlist"
+                          : "Add to wishlist"
+                      }
+                      aria-label={
+                        product.is_wishlisted
+                          ? "Remove from wishlist"
+                          : "Add to wishlist"
+                      }
+                    >
+                      <Icon
+                        name={product.is_wishlisted ? "heart" : "heartOutline"}
+                        className="h-5 w-5"
+                        fill={product.is_wishlisted ? "currentColor" : "none"}
+                      />
+                    </button>
 
-                  <p className="text-[#6d4c2f] mb-4 min-h-[48px]">
-                    {product.description || "Freshly cooked banana chips"}
-                  </p>
-
-                  <div className="mb-4 flex items-center justify-between rounded-xl bg-[#fffaf2] px-3 py-2 text-sm">
-                    <span className="font-black text-[#8b5e34]">
-                      ★ {Number(product.average_rating || 0).toFixed(1)}
-                    </span>
-                    <span className="text-[#6d4c2f]">
-                      {product.review_count || 0} review(s)
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-3xl font-black text-[#8b5e34]">
-                      PHP {product.price}
+                    <div className="absolute left-4 top-4 z-10 flex flex-wrap gap-2">
+                      {isBestSeller && (
+                        <span className="rounded-full bg-[#6f8f3d] px-3 py-1 text-xs font-black text-white shadow-sm">
+                          Best seller
+                        </span>
+                      )}
+                      {stock > 0 && stock <= 5 && (
+                        <span className="rounded-full bg-[#fff6da] px-3 py-1 text-xs font-black text-[#8b5e34] shadow-sm">
+                          Almost sold out
+                        </span>
+                      )}
                     </div>
 
-                    <div
-                      className={`text-sm font-semibold px-3 py-1 rounded-full ${
-                        product.stock <= 0
-                          ? "bg-red-100 text-red-700"
-                          : product.stock <= 5
-                          ? "bg-yellow-100 text-yellow-700"
-                          : "bg-green-100 text-green-700"
+                    {product.image ? (
+                      <img
+                        src={getMediaUrl(product.image)}
+                        alt={product.name}
+                        className="h-full w-full object-cover transition duration-500 hover:scale-105"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center p-8">
+                        <div className="rounded-3xl border border-[#ead7b8] bg-[#fffaf2] px-8 py-6 text-center">
+                          <p className="text-2xl font-black text-[#8b5e34]">
+                            Saba Chips
+                          </p>
+                          <p className="mt-2 text-sm text-[#6d4c2f]">
+                            Product photo coming soon
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-2xl font-black text-[#5f432c]">
+                          {product.name}
+                        </h3>
+                        <p className="mt-1 min-h-[44px] text-sm leading-relaxed text-[#6d4c2f]">
+                          {product.description || "Freshly cooked banana chips"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mb-4 flex flex-wrap gap-2">
+                      {flavors
+                        .filter((flavor) =>
+                          `${product.name || ""} ${product.description || ""}`
+                            .toLowerCase()
+                            .includes(flavor.toLowerCase())
+                        )
+                        .slice(0, 2)
+                        .map((flavor) => (
+                          <span
+                            key={flavor}
+                            className="rounded-full bg-[#fff7eb] px-3 py-1 text-xs font-black text-[#8b5e34]"
+                          >
+                            {flavor}
+                          </span>
+                        ))}
+                    </div>
+
+                    <div className="mb-5 grid grid-cols-2 gap-3">
+                      <div className="rounded-2xl bg-[#fffaf2] p-3">
+                        <p className="text-xs font-bold text-[#9a7654]">Rating</p>
+                        <p className="mt-1 inline-flex items-center gap-1 font-black text-[#8b5e34]">
+                          <Icon
+                            name="star"
+                            className="h-4 w-4"
+                            fill="currentColor"
+                          />
+                          {rating}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#fffaf2] p-3">
+                        <p className="text-xs font-bold text-[#9a7654]">Stock</p>
+                        <p className="mt-1 font-black text-[#8b5e34]">
+                          {stock <= 0 ? "Sold out" : `${stock} left`}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mb-5 flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#9a7654]">
+                          Price
+                        </p>
+                        <p className="text-3xl font-black text-[#5f432c]">
+                          PHP {Number(product.price || 0).toLocaleString()}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-1">
+                        <button
+                          onClick={() =>
+                            setProductQuantity(product, productQuantity(product) - 1)
+                          }
+                          disabled={stock <= 0 || productQuantity(product) <= 1}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl text-[#8b5e34] hover:bg-white disabled:opacity-40"
+                          aria-label="Decrease quantity"
+                        >
+                          <Icon name="minus" className="h-4 w-4" />
+                        </button>
+                        <span className="min-w-8 text-center font-black text-[#5f432c]">
+                          {productQuantity(product)}
+                        </span>
+                        <button
+                          onClick={() =>
+                            setProductQuantity(product, productQuantity(product) + 1)
+                          }
+                          disabled={stock <= 0 || productQuantity(product) >= stock}
+                          className="flex h-9 w-9 items-center justify-center rounded-xl text-[#8b5e34] hover:bg-white disabled:opacity-40"
+                          aria-label="Increase quantity"
+                        >
+                          <Icon name="plus" className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleAddToCart(product)}
+                      disabled={stock <= 0}
+                      className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3 font-black transition ${
+                        stock <= 0
+                          ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                          : "bg-[#8b5e34] text-white hover:bg-[#714a28]"
                       }`}
                     >
-                      {product.stock <= 0
-                        ? "Out of Stock"
-                        : product.stock <= 5
-                        ? `Low: ${product.stock}`
-                        : `Stock: ${product.stock}`}
-                    </div>
+                      <Icon name="bag" className="h-5 w-5" />
+                      {stock <= 0 ? "Out of Stock" : "Add to Cart"}
+                    </button>
                   </div>
-
-                  <button
-                    onClick={() => handleAddToCart(product.id)}
-                    disabled={product.stock <= 0}
-                    className={`w-full py-3 rounded-2xl font-semibold transition ${
-                      product.stock <= 0
-                        ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                        : "bg-[#8b5e34] text-white hover:bg-[#714a28]"
-                    }`}
-                  >
-                    {product.stock <= 0 ? "Out of Stock" : "Add to Cart"}
-                  </button>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {visibleProducts.length === 0 && (
-            <div className="text-center py-24">
-              <div className="text-6xl mb-6">Products</div>
-              <h3 className="text-3xl font-bold text-[#8b5e34] mb-3">
+            <div className="rounded-[1.5rem] border border-[#ead7b8] bg-white px-8 py-20 text-center">
+              <h3 className="text-3xl font-black text-[#8b5e34]">
                 No matching products
               </h3>
-              <p className="text-[#6d4c2f]">
+              <p className="mt-3 text-[#6d4c2f]">
                 Try adjusting your search or stock filters.
               </p>
             </div>
@@ -443,26 +664,61 @@ function Home() {
         </div>
       </section>
 
-      <div className="fixed bottom-6 right-6 z-50">
-        {chatOpen && (
-          <div className="w-[340px] sm:w-[380px] h-[520px] bg-white border border-[#ead7b8] rounded-3xl shadow-2xl mb-4 overflow-hidden flex flex-col">
-            <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] text-white p-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-black text-lg">Taste Assistant</h3>
-                <p className="text-sm text-[#fff1df]">
-                  Ask about flavors and best sellers
-                </p>
-              </div>
-
-              <button
-                onClick={() => setChatOpen(false)}
-                className="text-white text-xl font-bold hover:opacity-80"
+      <section className="bg-white py-14">
+        <div className="mx-auto grid max-w-6xl gap-6 px-6 lg:grid-cols-[0.8fr_1.2fr]">
+          <div>
+            <p className="mb-2 text-sm font-black uppercase tracking-[0.2em] text-[#9a7654]">
+              Delivery coverage
+            </p>
+            <h2 className="text-3xl font-black text-[#5f432c]">
+              Free delivery in nearby areas.
+            </h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {["Consolacion", "Liloan", "Compostela"].map((area) => (
+              <div
+                key={area}
+                className="rounded-2xl border border-[#ead7b8] bg-[#fffaf2] p-5"
               >
-                x
-              </button>
+                <p className="font-black text-[#8b5e34]">{area}</p>
+                <p className="mt-1 text-sm text-[#6d4c2f]">Free local delivery</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="fixed bottom-4 right-4 z-50 sm:bottom-6 sm:right-6">
+        {chatOpen && (
+          <div className="mb-4 flex h-[min(620px,calc(100vh-7rem))] w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-[1.75rem] border border-[#d8be96] bg-white shadow-2xl sm:w-[420px]">
+            <div className="bg-[#8b5e34] px-5 py-4 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/15">
+                    <Icon name="assistant" className="h-6 w-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black leading-tight">
+                      Taste Assistant
+                    </h3>
+                    <div className="mt-1 flex items-center gap-2 text-sm text-[#fff1df]">
+                      <span className="h-2 w-2 rounded-full bg-[#b7d67a]"></span>
+                      Sales-aware product helper
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setChatOpen(false)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-black hover:bg-white/15"
+                  aria-label="Close taste assistant"
+                >
+                  x
+                </button>
+              </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 bg-[#fffaf2] space-y-3">
+            <div className="flex-1 space-y-4 overflow-y-auto bg-[#fffaf2] p-4 [scrollbar-width:thin]">
               {chatMessages.map((msg, index) => (
                 <div
                   key={index}
@@ -471,10 +727,10 @@ function Home() {
                   }`}
                 >
                   <div
-                    className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm shadow-sm ${
+                    className={`max-w-[84%] rounded-[1.25rem] px-4 py-3 text-sm leading-relaxed shadow-sm ${
                       msg.sender === "user"
-                        ? "bg-[#8b5e34] text-white rounded-br-md"
-                        : "bg-white text-[#6d4c2f] border border-[#ead7b8] rounded-bl-md"
+                        ? "rounded-br-md bg-[#8b5e34] text-white"
+                        : "rounded-bl-md border border-[#ead7b8] bg-white text-[#5f432c]"
                     }`}
                   >
                     <p className="whitespace-pre-wrap break-words">{msg.text}</p>
@@ -491,8 +747,12 @@ function Home() {
 
               {aiLoading && (
                 <div className="flex justify-start">
-                  <div className="max-w-[80%] px-4 py-3 rounded-2xl rounded-bl-md text-sm shadow-sm bg-white text-[#6d4c2f] border border-[#ead7b8]">
-                    Thinking...
+                  <div className="max-w-[84%] rounded-[1.25rem] rounded-bl-md border border-[#ead7b8] bg-white px-4 py-3 text-sm text-[#6d4c2f] shadow-sm">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-[#8b5e34]"></span>
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-[#b8834d] [animation-delay:150ms]"></span>
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-[#d8be96] [animation-delay:300ms]"></span>
+                    </span>
                   </div>
                 </div>
               )}
@@ -500,36 +760,37 @@ function Home() {
               <div ref={chatEndRef}></div>
             </div>
 
-            <div className="p-4 border-t border-[#ead7b8] bg-white">
-              <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+            <div className="border-t border-[#ead7b8] bg-white p-4">
+              <div className="mb-3 grid grid-cols-2 gap-2">
                 {aiQuickPrompts.map((prompt) => (
                   <button
                     key={prompt}
                     type="button"
                     onClick={() => handleAskAI(prompt)}
                     disabled={aiLoading}
-                    className="shrink-0 rounded-full border border-[#d8be96] bg-[#fffaf2] px-3 py-2 text-xs font-bold text-[#8b5e34] hover:bg-[#f5e4c9] disabled:opacity-60"
+                    className="min-h-10 rounded-2xl border border-[#d8be96] bg-[#fffaf2] px-3 py-2 text-left text-xs font-black leading-snug text-[#8b5e34] transition hover:bg-[#f5e4c9] disabled:opacity-60"
                   >
                     {prompt}
                   </button>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-end gap-2 rounded-[1.35rem] border border-[#d8be96] bg-[#fffaf2] p-2 focus-within:ring-2 focus-within:ring-[#d6b585]">
                 <textarea
                   rows="2"
                   value={aiMessage}
                   onChange={(e) => setAiMessage(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about flavors..."
-                  className="flex-1 border border-[#d8be96] rounded-2xl p-3 focus:outline-none focus:ring-2 focus:ring-[#d6b585] resize-none"
+                  placeholder="Ask about flavors, prices, or best sellers..."
+                  className="max-h-24 min-h-[46px] flex-1 resize-none bg-transparent px-3 py-3 text-sm text-[#5f432c] placeholder:text-[#a99a8a] focus:outline-none"
                 />
 
                 <button
                   onClick={() => handleAskAI()}
                   disabled={aiLoading}
-                  className="bg-[#8b5e34] text-white px-4 rounded-2xl font-semibold hover:bg-[#714a28] transition disabled:opacity-60"
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#8b5e34] text-white transition hover:bg-[#714a28] disabled:opacity-60"
+                  aria-label="Send message"
                 >
-                  Send
+                  <Icon name="send" className="h-5 w-5" />
                 </button>
               </div>
             </div>
@@ -538,10 +799,11 @@ function Home() {
 
         <button
           onClick={() => setChatOpen((prev) => !prev)}
-          className="w-16 h-16 rounded-full bg-[#8b5e34] text-white shadow-2xl flex items-center justify-center text-2xl hover:bg-[#714a28] transition"
+          className="flex h-16 w-16 items-center justify-center rounded-full bg-[#8b5e34] text-white shadow-2xl transition hover:bg-[#714a28]"
           title="Taste Assistant"
+          aria-label="Taste Assistant"
         >
-          🤖
+          <Icon name="assistant" className="h-7 w-7" />
         </button>
       </div>
     </div>

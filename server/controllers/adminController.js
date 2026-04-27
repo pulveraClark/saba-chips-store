@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const getTopSellingProducts = require("../utils/topSellingProducts");
 
 exports.getAllUsers = (req, res) => {
   const page = Number(req.query.page) || 1;
@@ -304,25 +305,14 @@ exports.getOrderStatusChartData = (req, res) => {
   );
 };
 
-exports.getTopProductsChartData = (req, res) => {
-  db.query(
-    `SELECT 
-        p.name,
-        COALESCE(SUM(oi.quantity), 0) AS total_quantity
-     FROM order_items oi
-     JOIN products p ON oi.product_id = p.id
-     GROUP BY p.id, p.name
-     ORDER BY total_quantity DESC
-     LIMIT 5`,
-    (err, results) => {
-      if (err) {
-        console.error("Top products chart error:", err);
-        return res.status(500).json({ message: "Failed to fetch top products chart data" });
-      }
-
-      res.json({ topProductsChart: results });
-    }
-  );
+exports.getTopProductsChartData = async (req, res) => {
+  try {
+    const results = await getTopSellingProducts(5);
+    res.json({ topProductsChart: results });
+  } catch (err) {
+    console.error("Top products chart error:", err);
+    res.status(500).json({ message: "Failed to fetch top products chart data" });
+  }
 };
 
 exports.getAdvancedInsights = (req, res) => {

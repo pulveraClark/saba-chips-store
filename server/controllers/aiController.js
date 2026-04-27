@@ -1,5 +1,6 @@
 const OpenAI = require("openai");
 const queryAsync = require("../utils/queryAsync");
+const getTopSellingProducts = require("../utils/topSellingProducts");
 
 exports.askTasteAssistant = async (req, res) => {
   try {
@@ -14,6 +15,7 @@ exports.askTasteAssistant = async (req, res) => {
        FROM products
        ORDER BY name ASC`
     );
+    const topSellingProducts = await getTopSellingProducts(5);
 
     const productInfo = products.length
       ? products
@@ -26,11 +28,20 @@ exports.askTasteAssistant = async (req, res) => {
           .join("\n")
       : "No products are currently listed in the system.";
 
+    const topSellingInfo = topSellingProducts.length
+      ? topSellingProducts
+          .map(
+            (product, index) =>
+              `${index + 1}. ${product.name} (${product.total_quantity} sold, stock ${product.stock})`
+          )
+          .join("\n")
+      : "No sales-based best sellers yet.";
+
     const lowerMessage = message.toLowerCase();
     if (!process.env.GROQ_API_KEY) {
       const availableProducts = products.filter((product) => Number(product.stock) > 0);
-      const bestSellers = availableProducts.filter((product) =>
-        /sour cream|barbecue|chili/i.test(product.name)
+      const bestSellers = topSellingProducts.filter((product) =>
+        Number(product.stock) > 0
       );
 
       if (lowerMessage.includes("available") || lowerMessage.includes("stock")) {
@@ -51,9 +62,25 @@ exports.askTasteAssistant = async (req, res) => {
         });
       }
 
+      if (
+        lowerMessage.includes("best") ||
+        lowerMessage.includes("seller") ||
+        lowerMessage.includes("popular") ||
+        lowerMessage.includes("top")
+      ) {
+        return res.json({
+          reply: bestSellers.length
+            ? `Current best sellers by units sold: ${bestSellers
+                .slice(0, 3)
+                .map((product) => `${product.name} (${product.total_quantity} sold)`)
+                .join(", ")}.`
+            : "No sales-based best sellers yet. You can ask me about available stock or prices.",
+        });
+      }
+
       return res.json({
         reply: bestSellers.length
-          ? `For best sellers, try ${bestSellers
+          ? `Popular right now: ${bestSellers
               .slice(0, 3)
               .map((product) => product.name)
               .join(", ")}. You can also ask me about available stock or prices.`
@@ -84,12 +111,15 @@ Available flavors:
 Live products from the database:
 ${productInfo}
 
+Sales-based top selling products from the database:
+${topSellingInfo}
+
 Helpful guidance:
 - If the user likes spicy flavors, recommend Chili BBQ.
-- If the user wants a bestseller, recommend Sour Cream, Barbecue, or Chili BBQ.
+- If the user wants a bestseller, recommend products from the sales-based top selling products list above.
 - If the user likes cheesy flavors, recommend Cheese or Sour Cheese.
 - If the user wants a simple or less flavored option, recommend Plain.
-- For first-time buyers, suggest 2 to 3 popular flavors.
+- For first-time buyers, suggest 2 to 3 products from the sales-based top selling list when available.
 
 Delivery:
 - Free delivery within nearby locations.

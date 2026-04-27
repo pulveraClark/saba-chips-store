@@ -8,6 +8,32 @@ import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
 
+const deliveryAreas = ["Consolacion", "Liloan", "Compostela", "Other nearby area"];
+
+const iconPaths = {
+  check: "m5 13 4 4L19 7",
+  map: "M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3Zm0 0V3m6 18V6",
+  receipt: "M7 3h10a2 2 0 0 1 2 2v16l-3-2-2 2-2-2-2 2-2-2-3 2V5a2 2 0 0 1 2-2Zm3 6h6m-6 4h6",
+  shield: "M12 3 5 6v5c0 5 3.5 8.5 7 10 3.5-1.5 7-5 7-10V6l-7-3Z",
+};
+
+function Icon({ name, className = "h-5 w-5" }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d={iconPaths[name]} />
+    </svg>
+  );
+}
+
 function Checkout() {
   const [cart, setCart] = useState([]);
   const [formData, setFormData] = useState({
@@ -15,6 +41,8 @@ function Checkout() {
     phone: "",
     paymentMethod: "Cash on Delivery",
     saveProfile: true,
+    deliveryArea: "Liloan",
+    notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -50,6 +78,10 @@ function Checkout() {
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const freeDelivery = ["Consolacion", "Liloan", "Compostela"].includes(
+    formData.deliveryArea
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -108,35 +140,54 @@ function Checkout() {
 
   if (orderSuccess) {
     return (
-      <div className="min-h-screen bg-[#f8f2e8] flex items-center justify-center py-12 px-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl p-12 text-center border border-[#ead7b8]">
-          <div className="w-28 h-28 bg-gradient-to-r from-[#8b5e34] to-[#b8834d] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-xl">
-            <span className="text-4xl text-white">✅</span>
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f2e8] px-4 py-12">
+        <div className="w-full max-w-2xl rounded-[2rem] border border-[#ead7b8] bg-white p-8 text-center shadow-2xl md:p-12">
+          <div className="mx-auto mb-8 flex h-24 w-24 items-center justify-center rounded-3xl bg-[#6f8f3d] text-white shadow-xl">
+            <Icon name="check" className="h-12 w-12" />
           </div>
 
-          <h1 className="text-4xl font-black text-[#8b5e34] mb-4">
-            Order Confirmed!
+          <p className="mb-2 text-sm font-black uppercase tracking-[0.2em] text-[#9a7654]">
+            Order received
+          </p>
+          <h1 className="mb-4 text-4xl font-black text-[#5f432c]">
+            We are preparing your Saba Chips.
           </h1>
 
-          <p className="text-xl text-[#6d4c2f] mb-2">Order #{orderId}</p>
+          <div className="mx-auto mb-8 grid max-w-md gap-3 rounded-2xl border border-[#ead7b8] bg-[#fffaf2] p-5 text-left">
+            <div className="flex justify-between text-[#6d4c2f]">
+              <span>Order number</span>
+              <span className="font-black text-[#5f432c]">#{orderId}</span>
+            </div>
+            <div className="flex justify-between text-[#6d4c2f]">
+              <span>Total</span>
+              <span className="font-black text-[#5f432c]">
+                PHP {Number(finalTotal).toLocaleString()}
+              </span>
+            </div>
+            <div className="flex justify-between text-[#6d4c2f]">
+              <span>Payment</span>
+              <span className="font-black text-[#5f432c]">Cash on Delivery</span>
+            </div>
+          </div>
 
-          <p className="text-2xl font-bold text-[#8b5e34] mb-8">
-            Total: ₱{finalTotal.toLocaleString()}
+          <p className="mx-auto mb-8 max-w-lg text-[#6d4c2f]">
+            You can check your profile for order history and status updates. The
+            store can also message you if delivery details need confirmation.
           </p>
 
-          <div className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
             <Link
-              to="/home"
-              className="block w-full bg-[#8b5e34] text-white text-xl py-4 rounded-2xl font-semibold hover:bg-[#714a28] transition"
+              to="/profile"
+              className="rounded-2xl bg-[#8b5e34] py-4 font-black text-white transition hover:bg-[#714a28]"
             >
-              Continue Shopping
+              View Order History
             </Link>
 
             <Link
-              to="/profile"
-              className="block w-full text-center text-[#8b5e34] font-medium py-4 border border-[#d8be96] rounded-2xl hover:bg-[#fff7eb] transition"
+              to="/home"
+              className="rounded-2xl border border-[#d8be96] py-4 font-black text-[#8b5e34] transition hover:bg-[#fff7eb]"
             >
-              View Order History
+              Continue Shopping
             </Link>
           </div>
         </div>
@@ -145,175 +196,258 @@ function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f2e8] py-12 px-4">
-      <div className="max-w-5xl mx-auto grid lg:grid-cols-2 gap-8 items-start">
-        <div className="bg-white rounded-3xl shadow-xl border border-[#ead7b8] p-8">
-          <h2 className="text-2xl font-black text-[#8b5e34] mb-8">
-            Order Summary
-          </h2>
-
-          <div className="space-y-5 mb-10">
-            {cart.length > 0 ? (
-              cart.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center space-x-4 p-4 bg-[#fffaf2] rounded-2xl border border-[#f1e3ca]"
-                >
-                  <div className="w-20 h-20 bg-[#f8f2e8] rounded-xl flex items-center justify-center overflow-hidden">
-                    {item.image ? (
-                      <img
-                        src={getMediaUrl(item.image)}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      "🍟"
-                    )}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-[#8b5e34] text-lg truncate">
-                      {item.name}
-                    </h4>
-                    <p className="text-sm text-[#6d4c2f]">
-                      Qty: {item.quantity}
-                    </p>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="text-xl font-bold text-[#8b5e34]">
-                      ₱{(item.price * item.quantity).toLocaleString()}
-                    </div>
-                    <div className="text-sm text-[#7a5331]">
-                      ₱{item.price.toLocaleString()} each
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-[#6d4c2f]">Your cart is empty.</p>
-            )}
-          </div>
-
-          <div className="bg-[#fff7eb] p-6 rounded-2xl border border-[#ead7b8]">
-            <div className="flex justify-between text-2xl font-black text-[#8b5e34] mb-2">
-              <span>Total:</span>
-              <span>₱{total.toLocaleString()}</span>
-            </div>
-            <p className="text-sm text-[#6d4c2f]">Includes all taxes and fees</p>
-          </div>
+    <div className="min-h-screen bg-[#f8f2e8] px-4 py-10">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 rounded-[2rem] border border-[#d8be96] bg-[#5f432c] p-8 text-white shadow-xl">
+          <p className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#ffe2ad]">
+            Secure checkout
+          </p>
+          <h1 className="mb-3 text-4xl font-black md:text-5xl">
+            Delivery and payment
+          </h1>
+          <p className="max-w-2xl text-[#fff1df]">
+            Confirm your contact details so the store can prepare your order and
+            coordinate delivery.
+          </p>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl border border-[#ead7b8] p-8">
-          <h2 className="text-2xl font-black text-[#8b5e34] mb-8">
-            Shipping & Payment
-          </h2>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-[#6d4c2f] mb-3">
-                Delivery Address *
-              </label>
-              <textarea
-                rows="3"
-                className="input-field resize-none"
-                placeholder="House number, street, barangay, city, postal code"
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData({ ...formData, address: e.target.value })
-                }
-                required
-              />
+        <div className="grid gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+          <aside className="rounded-[2rem] border border-[#ead7b8] bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#f1dfc2] text-[#8b5e34]">
+                <Icon name="receipt" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-black text-[#5f432c]">
+                  Order Summary
+                </h2>
+                <p className="text-sm text-[#7a5331]">{itemCount} pack(s)</p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-[#6d4c2f] mb-3">
-                Phone Number *
-              </label>
-              <input
-                type="tel"
-                className="input-field"
-                placeholder="09xxxxxxxxx"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-                required
-              />
+            <div className="mb-6 space-y-4">
+              {cart.length > 0 ? (
+                cart.map((item) => (
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-[72px_1fr_auto] gap-4 rounded-2xl border border-[#f1e3ca] bg-[#fffaf2] p-3"
+                  >
+                    <div className="flex h-18 w-18 items-center justify-center overflow-hidden rounded-xl bg-[#f8f2e8]">
+                      {item.image ? (
+                        <img
+                          src={getMediaUrl(item.image)}
+                          alt={item.name}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="px-2 text-center text-xs font-black text-[#8b5e34]">
+                          Saba
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <h4 className="truncate font-black text-[#5f432c]">
+                        {item.name}
+                      </h4>
+                      <p className="text-sm text-[#6d4c2f]">
+                        Qty: {item.quantity}
+                      </p>
+                      <p className="text-xs text-[#7a5331]">
+                        PHP {Number(item.price).toLocaleString()} each
+                      </p>
+                    </div>
+
+                    <div className="text-right font-black text-[#8b5e34]">
+                      PHP {(item.price * item.quantity).toLocaleString()}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-[#6d4c2f]">Your cart is empty.</p>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-[#6d4c2f] mb-3">
-                Payment Method
-              </label>
+            <div className="rounded-2xl border border-[#ead7b8] bg-[#fff7eb] p-5">
+              <div className="mb-3 flex justify-between text-[#6d4c2f]">
+                <span>Subtotal</span>
+                <span className="font-black">PHP {total.toLocaleString()}</span>
+              </div>
+              <div className="mb-4 flex justify-between text-[#6d4c2f]">
+                <span>Delivery</span>
+                <span className="font-black">
+                  {freeDelivery ? "Free" : "To be confirmed"}
+                </span>
+              </div>
+              <div className="flex justify-between border-t border-[#ead7b8] pt-4 text-3xl font-black text-[#5f432c]">
+                <span>Total</span>
+                <span>PHP {total.toLocaleString()}</span>
+              </div>
+            </div>
+          </aside>
 
-              <label className="flex items-center p-4 border border-[#d8be96] rounded-2xl bg-[#fffaf2] cursor-pointer">
-                <input
-                  type="radio"
-                  name="payment"
-                  value="Cash on Delivery"
-                  checked={formData.paymentMethod === "Cash on Delivery"}
+          <section className="rounded-[2rem] border border-[#ead7b8] bg-white p-6 shadow-sm md:p-8">
+            <h2 className="mb-2 text-2xl font-black text-[#5f432c]">
+              Customer Details
+            </h2>
+            <p className="mb-8 text-[#6d4c2f]">
+              Accurate details help avoid delivery delays.
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div>
+                <label className="mb-3 block text-sm font-black text-[#6d4c2f]">
+                  Delivery Area
+                </label>
+                <select
+                  value={formData.deliveryArea}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      paymentMethod: e.target.value,
-                    })
+                    setFormData({ ...formData, deliveryArea: e.target.value })
                   }
-                  className="w-5 h-5 mr-4"
+                  className="input-field"
+                >
+                  {deliveryAreas.map((area) => (
+                    <option key={area} value={area}>
+                      {area}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-2 text-sm text-[#7a5331]">
+                  Free delivery currently covers Consolacion, Liloan, and
+                  Compostela.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-3 block text-sm font-black text-[#6d4c2f]">
+                  Complete Delivery Address *
+                </label>
+                <textarea
+                  rows="4"
+                  className="input-field resize-none"
+                  placeholder="House number, street, barangay, landmark"
+                  value={formData.address}
+                  onChange={(e) =>
+                    setFormData({ ...formData, address: e.target.value })
+                  }
+                  required
                 />
-                <div>
-                  <div className="font-semibold text-[#8b5e34]">
-                    Cash on Delivery
-                  </div>
-                  <div className="text-sm text-[#6d4c2f]">
-                    Pay when delivered
-                  </div>
-                </div>
+              </div>
+
+              <div>
+                <label className="mb-3 block text-sm font-black text-[#6d4c2f]">
+                  Phone Number *
+                </label>
+                <input
+                  type="tel"
+                  className="input-field"
+                  placeholder="09xxxxxxxxx"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-3 block text-sm font-black text-[#6d4c2f]">
+                  Order Notes
+                </label>
+                <textarea
+                  rows="3"
+                  className="input-field resize-none"
+                  placeholder="Preferred delivery time, landmark, or special request"
+                  value={formData.notes}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="mb-3 block text-sm font-black text-[#6d4c2f]">
+                  Payment Method
+                </label>
+
+                <label className="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="Cash on Delivery"
+                    checked={formData.paymentMethod === "Cash on Delivery"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        paymentMethod: e.target.value,
+                      })
+                    }
+                    className="h-5 w-5"
+                  />
+                  <span>
+                    <span className="block font-black text-[#8b5e34]">
+                      Cash on Delivery
+                    </span>
+                    <span className="text-sm text-[#6d4c2f]">
+                      Pay when your order arrives.
+                    </span>
+                  </span>
+                </label>
+              </div>
+
+              <label className="flex items-start gap-3 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
+                <input
+                  type="checkbox"
+                  checked={formData.saveProfile}
+                  onChange={(e) =>
+                    setFormData({ ...formData, saveProfile: e.target.checked })
+                  }
+                  className="mt-1 h-5 w-5"
+                />
+                <span>
+                  <span className="block font-black text-[#8b5e34]">
+                    Save as my default delivery details
+                  </span>
+                  <span className="text-sm text-[#6d4c2f]">
+                    Next checkout will prefill this address and phone number.
+                  </span>
+                </span>
               </label>
 
-              <p className="mt-3 text-sm text-[#7a5331]">
-                Cash on Delivery is currently the only supported payment option.
-              </p>
+              <div className="grid gap-3 rounded-2xl border border-[#ead7b8] bg-white p-4 sm:grid-cols-2">
+                <div className="flex gap-3 text-sm text-[#6d4c2f]">
+                  <Icon name="map" className="h-5 w-5 shrink-0 text-[#8b5e34]" />
+                  Delivery details may be confirmed by message.
+                </div>
+                <div className="flex gap-3 text-sm text-[#6d4c2f]">
+                  <Icon
+                    name="shield"
+                    className="h-5 w-5 shrink-0 text-[#8b5e34]"
+                  />
+                  Your order is created before stock is refreshed.
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading || cart.length === 0}
+                className="w-full rounded-2xl bg-[#8b5e34] py-5 text-xl font-black text-white transition hover:bg-[#714a28] disabled:opacity-60"
+              >
+                {loading
+                  ? "Processing Order..."
+                  : `Place Order - PHP ${total.toLocaleString()}`}
+              </button>
+            </form>
+
+            <div className="mt-8 border-t border-[#ead7b8] pt-6 text-center">
+              <Link
+                to="/cart"
+                className="font-black text-[#8b5e34] hover:text-[#714a28]"
+              >
+                Back to Cart
+              </Link>
             </div>
-
-            <label className="flex items-start gap-3 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
-              <input
-                type="checkbox"
-                checked={formData.saveProfile}
-                onChange={(e) =>
-                  setFormData({ ...formData, saveProfile: e.target.checked })
-                }
-                className="mt-1 h-5 w-5"
-              />
-              <span>
-                <span className="block font-semibold text-[#8b5e34]">
-                  Save as my default delivery details
-                </span>
-                <span className="text-sm text-[#6d4c2f]">
-                  Next checkout will prefill this address and phone number.
-                </span>
-              </span>
-            </label>
-
-            <button
-              type="submit"
-              disabled={loading || cart.length === 0}
-              className="w-full bg-[#8b5e34] text-white text-xl py-5 rounded-2xl font-bold hover:bg-[#714a28] transition disabled:opacity-60"
-            >
-              {loading
-                ? "Processing Order..."
-                : `Place Order • ₱${total.toLocaleString()}`}
-            </button>
-          </form>
-
-          <div className="mt-10 pt-6 border-t border-[#ead7b8] text-center">
-            <Link
-              to="/cart"
-              className="text-[#8b5e34] hover:text-[#714a28] font-medium"
-            >
-              Back to Cart
-            </Link>
-          </div>
+          </section>
         </div>
       </div>
     </div>
