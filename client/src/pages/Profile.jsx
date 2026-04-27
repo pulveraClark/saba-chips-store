@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getMe } from "../assets/services/authService.js";
+import { getMe, updateMe } from "../assets/services/authService.js";
 import OrderTimeline from "../assets/components/OrderTimeline.jsx";
 import {
   getUserOrders,
@@ -8,6 +8,16 @@ import {
 } from "../assets/services/orderService.js";
 import { sortByNewest } from "../utils/sortByNewest.js";
 import { useNotification } from "../context/NotificationContext.jsx";
+
+const ORDERS_PER_PAGE = 5;
+
+const statusStyles = {
+  pending: "bg-amber-100 text-amber-800 border-amber-200",
+  confirmed: "bg-blue-100 text-blue-800 border-blue-200",
+  shipped: "bg-violet-100 text-violet-800 border-violet-200",
+  delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  cancelled: "bg-red-100 text-red-800 border-red-200",
+};
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -17,11 +27,19 @@ function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
+  const [orderFilter, setOrderFilter] = useState("all");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+  });
   const [cancelReasonByOrder, setCancelReasonByOrder] = useState({});
   const [requestingCancelId, setRequestingCancelId] = useState(null);
+  const [confirmCancelOrderId, setConfirmCancelOrderId] = useState(null);
   const { notify } = useNotification();
-
-  const ORDERS_PER_PAGE = 5;
 
   useEffect(() => {
     fetchProfile();
@@ -32,18 +50,24 @@ function Profile() {
       if (showRefresh) setRefreshing(true);
 
       const data = await getMe();
-
-      if (data.user) {
-        setUser(data.user);
-
-        try {
-          const userOrders = await getUserOrders();
-          setOrders(userOrders || []);
-        } catch {
-          setOrders([]);
-        }
-      } else {
+      if (!data.user) {
         setError("Please login to view profile");
+        return;
+      }
+
+      setUser(data.user);
+      setProfileForm({
+        name: data.user.name || "",
+        email: data.user.email || "",
+        phone: data.user.phone || "",
+        address: data.user.address || "",
+      });
+
+      try {
+        const userOrders = await getUserOrders();
+        setOrders(userOrders || []);
+      } catch {
+        setOrders([]);
       }
     } catch {
       setError("Please login to view profile");
@@ -54,12 +78,54 @@ function Profile() {
     }
   };
 
-  const sortedOrders = sortByNewest(orders);
-  const totalPages = Math.max(1, Math.ceil(sortedOrders.length / ORDERS_PER_PAGE));
-  const paginatedOrders = sortedOrders.slice(
+  const sortedOrders = useMemo(() => sortByNewest(orders), [orders]);
+  const filteredOrders = useMemo(() => {
+    if (orderFilter === "active") {
+      return sortedOrders.filter((order) =>
+        ["pending", "confirmed", "shipped"].includes(order.status)
+      );
+    }
+    if (orderFilter === "completed") {
+      return sortedOrders.filter((order) => order.status === "delivered");
+    }
+    if (orderFilter === "cancelled") {
+      return sortedOrders.filter((order) => order.status === "cancelled");
+    }
+    return sortedOrders;
+  }, [orderFilter, sortedOrders]);
+  const activeOrders = sortedOrders.filter((order) =>
+    ["pending", "confirmed", "shipped"].includes(order.status)
+  );
+  const totalSpent = sortedOrders.reduce((sum, order) => sum + Number(order.total), 0);
+  const latestStatus = sortedOrders[0]?.status || "No orders yet";
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
+  const paginatedOrders = filteredOrders.slice(
     (page - 1) * ORDERS_PER_PAGE,
     page * ORDERS_PER_PAGE
   );
+
+  const handleProfileSave = async (e) => {
+    e.preventDefault();
+    try {
+      setSavingProfile(true);
+      const data = await updateMe(profileForm);
+      setUser(data.user);
+      setEditingProfile(false);
+      notify({
+        type: "success",
+        title: "Profile updated",
+        message: "Your account details were saved.",
+      });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Profile update failed",
+        message: err?.response?.data?.message || "Could not update your profile.",
+      });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleCancellationRequest = async (orderId) => {
     const reason = cancelReasonByOrder[orderId]?.trim();
@@ -77,6 +143,7 @@ function Profile() {
       await requestOrderCancellation(orderId, reason);
       setCancelReasonByOrder((prev) => ({ ...prev, [orderId]: "" }));
       await fetchProfile(true);
+      setConfirmCancelOrderId(null);
       notify({
         type: "success",
         title: "Request submitted",
@@ -95,313 +162,459 @@ function Profile() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen bg-[#f8f2e8]">
-        <div className="text-2xl text-[#8b5e34] animate-pulse">
-          Loading profile...
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f2e8]">
+        <div className="text-xl font-bold text-[#8b5e34]">Loading profile...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#f8f2e8] px-6 py-16">
+        <div className="mx-auto max-w-md rounded-2xl border border-[#ead7b8] bg-white p-10 text-center shadow-xl">
+          <h2 className="mb-4 text-2xl font-black text-[#8b5e34]">{error}</h2>
+          <Link
+            to="/login"
+            className="inline-block rounded-xl bg-[#8b5e34] px-6 py-3 font-bold text-white hover:bg-[#714a28]"
+          >
+            Go to Login
+          </Link>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f2e8] py-16">
-      <div className="max-w-6xl mx-auto px-6">
-        {error ? (
-          <div className="bg-white rounded-3xl shadow-xl p-12 text-center max-w-md mx-auto border border-[#ead7b8]">
-            <div className="text-6xl mb-6">🔒</div>
-            <h2 className="text-2xl font-bold text-[#8b5e34] mb-4">{error}</h2>
-            <Link
-              to="/login"
-              className="bg-[#8b5e34] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#714a28] transition inline-block"
-            >
-              Go to Login
-            </Link>
-          </div>
-        ) : user ? (
-          <div className="space-y-10">
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#ead7b8]">
-              <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] p-12 text-white text-center">
-                <div className="w-32 h-32 bg-white/20 rounded-full mx-auto flex items-center justify-center mb-6">
-                  <span className="text-5xl">👤</span>
+    <div className="min-h-screen bg-[#f8f2e8] py-10">
+      <div className="mx-auto max-w-6xl space-y-8 px-4 sm:px-6">
+        <section className="overflow-hidden rounded-2xl border border-[#ead7b8] bg-white shadow-xl">
+          <div className="bg-[#8b5e34] px-6 py-8 text-white sm:px-8">
+            <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white text-3xl font-black text-[#8b5e34]">
+                  {user?.name?.charAt(0)?.toUpperCase() || "U"}
                 </div>
-                <h2 className="text-4xl font-black mb-2">{user.name}</h2>
-                <p className="text-xl text-[#fff1df]">{user.email}</p>
+                <div>
+                  <p className="text-sm font-bold uppercase tracking-[0.18em] text-[#f9dfbd]">
+                    My Profile
+                  </p>
+                  <h1 className="mt-1 text-3xl font-black">{user?.name}</h1>
+                  <p className="mt-1 text-[#fff1df]">{user?.email}</p>
+                </div>
               </div>
 
-              <div className="p-12">
-                <div className="grid md:grid-cols-2 gap-8">
-                  <div className="bg-[#fffaf2] rounded-2xl p-8 border border-[#ead7b8]">
-                    <h3 className="text-2xl font-black text-[#8b5e34] mb-6">
-                      Account Info
-                    </h3>
-
-                    <div className="space-y-4 text-lg">
-                      <div>
-                        <span className="font-semibold text-[#6d4c2f]">User ID:</span>
-                        <span className="ml-2 bg-[#f5e4c9] px-3 py-1 rounded-full text-[#8b5e34] font-mono text-sm">
-                          {user.id}
-                        </span>
-                      </div>
-
-                      <div>
-                        <span className="font-semibold text-[#6d4c2f]">Email:</span>
-                        <span className="ml-2 text-gray-900">{user.email}</span>
-                      </div>
-
-                      <div>
-                        <span className="font-semibold text-[#6d4c2f]">
-                          Member since:
-                        </span>
-                        <span className="ml-2 text-[#8b5e34] font-bold">
-                          {new Date().toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-[#fffaf2] rounded-2xl p-8 border border-[#ead7b8]">
-                    <h3 className="text-2xl font-black text-[#8b5e34] mb-6">
-                      Order Summary
-                    </h3>
-
-                    <div className="space-y-4 text-lg">
-                      <div className="flex justify-between">
-                        <span className="font-semibold text-[#6d4c2f]">
-                          Total Orders:
-                        </span>
-                        <span className="font-bold text-[#8b5e34]">
-                          {orders.length}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span className="font-semibold text-[#6d4c2f]">
-                          Latest Status:
-                        </span>
-                        <span className="font-bold text-[#8b5e34] capitalize">
-                          {sortedOrders.length > 0 ? sortedOrders[0].status : "No orders yet"}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between">
-                        <span className="font-semibold text-[#6d4c2f]">
-                          Total Spent:
-                        </span>
-                        <span className="font-bold text-[#8b5e34]">
-                          ₱
-                          {sortedOrders
-                            .reduce((sum, order) => sum + Number(order.total), 0)
-                            .toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  to="/messages"
+                  className="rounded-xl bg-white px-4 py-3 font-bold text-[#8b5e34] hover:bg-[#fff7eb]"
+                >
+                  Message Admin
+                </Link>
+                <Link
+                  to="/home"
+                  className="rounded-xl border border-white/60 px-4 py-3 font-bold text-white hover:bg-white/10"
+                >
+                  Continue Shopping
+                </Link>
               </div>
             </div>
+          </div>
 
-            <div className="bg-white rounded-3xl shadow-2xl p-10 border border-[#ead7b8]">
-              <div className="flex items-center justify-between gap-4 mb-8">
-                <h3 className="text-3xl font-black text-[#8b5e34]">
-                  Order History
-                </h3>
+          <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
+            <SummaryTile label="User ID" value={`#${user?.id}`} />
+              <SummaryTile label="Total Orders" value={orders.length} />
+            <SummaryTile label="Active Orders" value={activeOrders.length} />
+            <SummaryTile label="Total Spent" value={`PHP ${totalSpent.toLocaleString()}`} />
+          </div>
+        </section>
 
-                <button
-                  onClick={() => fetchProfile(true)}
-                  disabled={refreshing}
-                  className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28] disabled:opacity-60"
-                >
-                  {refreshing ? "↻..." : "↻"}
-                </button>
-              </div>
-
-              {ordersLoading ? (
-                <div className="text-center py-16 text-xl text-[#8b5e34] animate-pulse">
-                  Loading orders...
-                </div>
-              ) : orders.length === 0 ? (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-6">📦</div>
-                  <p className="text-xl text-[#6d4c2f] mb-6">No orders yet</p>
-                  <Link
-                    to="/home"
-                    className="bg-[#8b5e34] text-white px-8 py-4 rounded-2xl font-bold hover:bg-[#714a28] transition inline-block"
-                  >
-                    Start Shopping
-                  </Link>
-                </div>
+        <section className="grid gap-6 lg:grid-cols-[0.85fr_1.35fr]">
+          <div className="space-y-6">
+            <Panel title="Account Details">
+              {editingProfile ? (
+                <form onSubmit={handleProfileSave} className="space-y-4">
+                  <ProfileInput
+                    label="Name"
+                    value={profileForm.name}
+                    onChange={(value) => setProfileForm((prev) => ({ ...prev, name: value }))}
+                    required
+                  />
+                  <ProfileInput
+                    label="Email"
+                    type="email"
+                    value={profileForm.email}
+                    onChange={(value) => setProfileForm((prev) => ({ ...prev, email: value }))}
+                    required
+                  />
+                  <ProfileInput
+                    label="Phone"
+                    value={profileForm.phone}
+                    onChange={(value) => setProfileForm((prev) => ({ ...prev, phone: value }))}
+                    placeholder="09xxxxxxxxx"
+                  />
+                  <div>
+                    <label className="mb-2 block text-sm font-bold text-[#7a5331]">
+                      Delivery Address
+                    </label>
+                    <textarea
+                      value={profileForm.address}
+                      onChange={(e) =>
+                        setProfileForm((prev) => ({ ...prev, address: e.target.value }))
+                      }
+                      rows={3}
+                      className="w-full rounded-xl border border-[#d8be96] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#8b5e34]"
+                      placeholder="Default delivery address"
+                    />
+                  </div>
+                  <div className="flex gap-3">
+                    <button
+                      type="submit"
+                      disabled={savingProfile}
+                      className="rounded-xl bg-[#8b5e34] px-4 py-3 font-bold text-white hover:bg-[#714a28] disabled:opacity-60"
+                    >
+                      {savingProfile ? "Saving..." : "Save Profile"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingProfile(false)}
+                      className="rounded-xl border border-[#d8be96] px-4 py-3 font-bold text-[#8b5e34] hover:bg-[#fffaf2]"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
               ) : (
                 <>
-                  <div className="space-y-6">
-                    {paginatedOrders.map((order) => (
-                      <div
-                        key={order.id}
-                        className="border border-[#ead7b8] rounded-2xl p-6 bg-[#fffaf2]"
-                      >
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                          <div>
-                            <h4 className="text-2xl font-black text-[#8b5e34]">
-                              Order #{order.id}
-                            </h4>
-                            <p className="text-[#6d4c2f]">
-                              {new Date(order.created_at).toLocaleString()}
-                            </p>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-2xl font-black text-[#8b5e34]">
-                              ₱{Number(order.total).toLocaleString()}
-                            </p>
-                            <span
-                              className={`inline-flex items-center gap-2 mt-2 px-4 py-2 rounded-full text-sm font-bold capitalize ${
-                                order.status === "pending"
-                                  ? "bg-yellow-100 text-yellow-700"
-                                  : order.status === "confirmed"
-                                  ? "bg-blue-100 text-blue-700"
-                                  : order.status === "shipped"
-                                  ? "bg-purple-100 text-purple-700"
-                                  : order.status === "delivered"
-                                  ? "bg-green-100 text-green-700"
-                                  : order.status === "cancelled"
-                                  ? "bg-red-100 text-red-700"
-                                  : "bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              <span className="w-2 h-2 rounded-full bg-current"></span>
-                              {order.status}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3">
-                          {order.items.map((item, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center bg-white rounded-xl p-4 border border-[#f1e3ca]"
-                            >
-                              <div>
-                                <p className="font-semibold text-gray-900">
-                                  {item.product}
-                                </p>
-                                <p className="text-sm text-[#6d4c2f]">
-                                  Quantity: {item.quantity}
-                                </p>
-                              </div>
-
-                              <p className="font-bold text-[#8b5e34]">
-                                ₱{Number(item.price).toLocaleString()}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-6 border-t border-[#ead7b8] pt-5">
-                          <h5 className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#7a5331]">
-                            Order Tracking
-                          </h5>
-                          <OrderTimeline
-                            status={order.status}
-                            timeline={order.timeline || []}
-                          />
-                        </div>
-
-                        <div className="mt-6 border-t border-[#ead7b8] pt-5">
-                          <h5 className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#7a5331]">
-                            Cancellation
-                          </h5>
-
-                          {order.cancellation_request ? (
-                            <div className="rounded-2xl border border-[#ead7b8] bg-white p-4">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                <p className="font-bold text-[#8b5e34]">
-                                  Request status:{" "}
-                                  <span className="capitalize">
-                                    {order.cancellation_request.status}
-                                  </span>
-                                </p>
-                                <p className="text-sm text-[#6d4c2f]">
-                                  {new Date(
-                                    order.cancellation_request.created_at
-                                  ).toLocaleString()}
-                                </p>
-                              </div>
-                              <p className="mt-2 text-sm text-[#6d4c2f]">
-                                Reason: {order.cancellation_request.reason}
-                              </p>
-                              {order.cancellation_request.admin_note && (
-                                <p className="mt-2 text-sm text-[#6d4c2f]">
-                                  Admin note: {order.cancellation_request.admin_note}
-                                </p>
-                              )}
-                            </div>
-                          ) : ["pending", "confirmed"].includes(order.status) ? (
-                            <div className="grid md:grid-cols-[1fr_auto] gap-3">
-                              <textarea
-                                value={cancelReasonByOrder[order.id] || ""}
-                                onChange={(e) =>
-                                  setCancelReasonByOrder((prev) => ({
-                                    ...prev,
-                                    [order.id]: e.target.value,
-                                  }))
-                                }
-                                rows={2}
-                                className="rounded-2xl border border-[#d8be96] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#8b5e34]"
-                                placeholder="Reason for cancellation"
-                              />
-                              <button
-                                onClick={() => handleCancellationRequest(order.id)}
-                                disabled={requestingCancelId === order.id}
-                                className="rounded-2xl bg-red-600 px-5 py-3 text-white font-black hover:bg-red-700 disabled:opacity-60"
-                              >
-                                {requestingCancelId === order.id
-                                  ? "Sending..."
-                                  : "Request Cancel"}
-                              </button>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-[#6d4c2f]">
-                              Cancellation requests are available only before shipping.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-[#f1e3ca]">
-                    <p className="text-[#6d4c2f] font-medium">
-                      Page {page} of {totalPages} • {orders.length} total orders
-                    </p>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-                        disabled={page === 1}
-                        className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Prev
-                      </button>
-
-                      <button
-                        onClick={() =>
-                          setPage((prev) => (prev < totalPages ? prev + 1 : prev))
-                        }
-                        disabled={page >= totalPages}
-                        className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  </div>
+                  <InfoRow label="Name" value={user?.name} />
+                  <InfoRow label="Email" value={user?.email} />
+                  <InfoRow label="Phone" value={user?.phone || "Not set"} />
+                  <InfoRow label="Address" value={user?.address || "Not set"} />
+                  <InfoRow label="Latest Order Status" value={latestStatus} capitalize />
+                  <InfoRow
+                    label="Member Since"
+                    value={new Date().toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  />
+                  <button
+                    onClick={() => setEditingProfile(true)}
+                    className="mt-4 w-full rounded-xl bg-[#8b5e34] px-4 py-3 font-bold text-white hover:bg-[#714a28]"
+                  >
+                    Edit Profile
+                  </button>
                 </>
               )}
-            </div>
+            </Panel>
+
+            <Panel title="Quick Links">
+              <div className="grid gap-3">
+                <Link
+                  to="/cart"
+                  className="rounded-xl border border-[#ead7b8] bg-[#fffaf2] px-4 py-3 font-bold text-[#8b5e34] hover:bg-[#f5e4c9]"
+                >
+                  View Cart
+                </Link>
+                <Link
+                  to="/messages"
+                  className="rounded-xl border border-[#ead7b8] bg-[#fffaf2] px-4 py-3 font-bold text-[#8b5e34] hover:bg-[#f5e4c9]"
+                >
+                  Contact Support
+                </Link>
+              </div>
+            </Panel>
           </div>
-        ) : null}
+
+          <section className="rounded-2xl border border-[#ead7b8] bg-white shadow-xl">
+            <div className="flex flex-col gap-4 border-b border-[#ead7b8] p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-[#8b5e34]">Order History</h2>
+                <p className="mt-1 text-sm text-[#6d4c2f]">
+                  Simple view of your orders, tracking, and cancellation requests.
+                </p>
+              </div>
+              <button
+                onClick={() => fetchProfile(true)}
+                disabled={refreshing}
+                className="rounded-xl bg-[#8b5e34] px-4 py-3 font-bold text-white hover:bg-[#714a28] disabled:opacity-60"
+              >
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto border-b border-[#ead7b8] px-5 py-4">
+              {[
+                ["all", "All"],
+                ["active", "Active"],
+                ["completed", "Delivered"],
+                ["cancelled", "Cancelled"],
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => {
+                    setOrderFilter(value);
+                    setPage(1);
+                  }}
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-black ${
+                    orderFilter === value
+                      ? "bg-[#8b5e34] text-white"
+                      : "border border-[#ead7b8] bg-white text-[#8b5e34] hover:bg-[#fffaf2]"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {ordersLoading ? (
+              <div className="py-16 text-center font-bold text-[#8b5e34]">
+                Loading orders...
+              </div>
+            ) : sortedOrders.length === 0 ? (
+              <div className="p-10 text-center">
+                <h3 className="text-xl font-black text-[#8b5e34]">No orders yet</h3>
+                <p className="mt-2 text-[#6d4c2f]">Your future purchases will appear here.</p>
+                <Link
+                  to="/home"
+                  className="mt-6 inline-block rounded-xl bg-[#8b5e34] px-6 py-3 font-bold text-white hover:bg-[#714a28]"
+                >
+                  Start Shopping
+                </Link>
+              </div>
+            ) : (
+              <>
+                {filteredOrders.length === 0 ? (
+                  <div className="p-10 text-center text-[#6d4c2f]">
+                    No orders match this filter.
+                  </div>
+                ) : (
+                  <div className="divide-y divide-[#f1e3ca]">
+                    {paginatedOrders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        reason={cancelReasonByOrder[order.id] || ""}
+                        requesting={requestingCancelId === order.id}
+                        onReasonChange={(value) =>
+                          setCancelReasonByOrder((prev) => ({
+                            ...prev,
+                            [order.id]: value,
+                          }))
+                        }
+                        onCancelRequest={() => setConfirmCancelOrderId(order.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-4 border-t border-[#f1e3ca] bg-[#fffaf2] p-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="font-medium text-[#6d4c2f]">
+                    Page {page} of {totalPages} - {filteredOrders.length} shown
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                      disabled={page === 1}
+                      className="rounded-xl bg-[#8b5e34] px-5 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Prev
+                    </button>
+                    <button
+                      onClick={() => setPage((prev) => (prev < totalPages ? prev + 1 : prev))}
+                      disabled={page >= totalPages}
+                      className="rounded-xl bg-[#8b5e34] px-5 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </section>
+        </section>
+      </div>
+      {confirmCancelOrderId && (
+        <ConfirmDialog
+          title="Request cancellation?"
+          message={`This will send your cancellation request for Order #${confirmCancelOrderId} to admin for review.`}
+          confirmLabel="Send Request"
+          danger
+          onCancel={() => setConfirmCancelOrderId(null)}
+          onConfirm={() => handleCancellationRequest(confirmCancelOrderId)}
+        />
+      )}
+    </div>
+  );
+}
+
+function SummaryTile({ label, value }) {
+  return (
+    <div className="rounded-xl border border-[#ead7b8] bg-[#fffaf2] p-4">
+      <p className="text-sm font-bold text-[#7a5331]">{label}</p>
+      <p className="mt-2 text-2xl font-black text-[#8b5e34]">{value}</p>
+    </div>
+  );
+}
+
+function Panel({ title, children }) {
+  return (
+    <div className="rounded-2xl border border-[#ead7b8] bg-white p-5 shadow-xl">
+      <h2 className="mb-4 text-xl font-black text-[#8b5e34]">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function InfoRow({ label, value, capitalize = false }) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-[#f1e3ca] py-3 last:border-0">
+      <p className="text-sm font-bold text-[#7a5331]">{label}</p>
+      <p className={`text-right font-semibold text-gray-900 ${capitalize ? "capitalize" : ""}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function ProfileInput({ label, value, onChange, type = "text", required = false, placeholder = "" }) {
+  return (
+    <div>
+      <label className="mb-2 block text-sm font-bold text-[#7a5331]">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        placeholder={placeholder}
+        className="w-full rounded-xl border border-[#d8be96] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#8b5e34]"
+      />
+    </div>
+  );
+}
+
+function OrderCard({ order, reason, requesting, onReasonChange, onCancelRequest }) {
+  const canRequestCancel = ["pending", "confirmed"].includes(order.status);
+  const statusClass = statusStyles[order.status] || "bg-gray-100 text-gray-800 border-gray-200";
+
+  return (
+    <article className="p-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-3">
+            <h3 className="text-xl font-black text-[#8b5e34]">Order #{order.id}</h3>
+            <span className={`rounded-full border px-3 py-1 text-xs font-black capitalize ${statusClass}`}>
+              {order.status}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-[#6d4c2f]">
+            {new Date(order.created_at).toLocaleString()}
+          </p>
+        </div>
+        <p className="text-2xl font-black text-[#8b5e34]">
+          PHP {Number(order.total).toLocaleString()}
+        </p>
+      </div>
+
+      <div className="mt-5 rounded-xl border border-[#f1e3ca] bg-[#fffaf2]">
+        {order.items.map((item, index) => (
+          <div
+            key={index}
+            className="flex items-center justify-between gap-4 border-b border-[#f1e3ca] px-4 py-3 last:border-0"
+          >
+            <div>
+              <p className="font-bold text-gray-900">{item.product}</p>
+              <p className="text-sm text-[#6d4c2f]">Qty {item.quantity}</p>
+            </div>
+            <p className="font-black text-[#8b5e34]">
+              PHP {Number(item.price).toLocaleString()}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      <details className="mt-4 rounded-xl border border-[#ead7b8] bg-white p-4">
+        <summary className="cursor-pointer font-black text-[#8b5e34]">
+          Tracking details
+        </summary>
+        <div className="mt-4">
+          <OrderTimeline status={order.status} timeline={order.timeline || []} />
+        </div>
+      </details>
+
+      <div className="mt-4 rounded-xl border border-[#ead7b8] bg-white p-4">
+        <p className="mb-3 font-black text-[#8b5e34]">Cancellation</p>
+        {order.cancellation_request ? (
+          <div className="rounded-xl bg-[#fffaf2] p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="font-bold text-[#6d4c2f]">
+                Request status:{" "}
+                <span className="capitalize text-[#8b5e34]">
+                  {order.cancellation_request.status}
+                </span>
+              </p>
+              <p className="text-sm text-[#7a5331]">
+                {new Date(order.cancellation_request.created_at).toLocaleString()}
+              </p>
+            </div>
+            <p className="mt-2 text-sm text-[#6d4c2f]">
+              Reason: {order.cancellation_request.reason}
+            </p>
+            {order.cancellation_request.admin_note && (
+              <p className="mt-2 text-sm text-[#6d4c2f]">
+                Admin note: {order.cancellation_request.admin_note}
+              </p>
+            )}
+          </div>
+        ) : canRequestCancel ? (
+          <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+            <textarea
+              value={reason}
+              onChange={(e) => onReasonChange(e.target.value)}
+              rows={2}
+              className="rounded-xl border border-[#d8be96] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#8b5e34]"
+              placeholder="Reason for cancellation"
+            />
+            <button
+              onClick={onCancelRequest}
+              disabled={requesting}
+              className="rounded-xl bg-red-600 px-5 py-3 font-black text-white hover:bg-red-700 disabled:opacity-60"
+            >
+              {requesting ? "Sending..." : "Request Cancel"}
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-[#6d4c2f]">
+            Cancellation requests are available only before shipping.
+          </p>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function ConfirmDialog({ title, message, confirmLabel, danger = false, onCancel, onConfirm }) {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 px-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h3 className="text-xl font-black text-[#8b5e34]">{title}</h3>
+        <p className="mt-3 text-[#6d4c2f]">{message}</p>
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onCancel}
+            className="rounded-xl border border-[#d8be96] px-4 py-3 font-bold text-[#8b5e34] hover:bg-[#fffaf2]"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className={`rounded-xl px-4 py-3 font-bold text-white ${
+              danger ? "bg-red-600 hover:bg-red-700" : "bg-[#8b5e34] hover:bg-[#714a28]"
+            }`}
+          >
+            {confirmLabel}
+          </button>
+        </div>
       </div>
     </div>
   );

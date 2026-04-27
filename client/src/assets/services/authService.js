@@ -28,6 +28,11 @@ export const getMe = async () => {
   return res.data;
 };
 
+export const updateMe = async (data) => {
+  const res = await api.put(`${API}/me`, data);
+  return res.data;
+};
+
 export const forgotPassword = async (email) => {
   const res = await api.post(`${API}/forgot-password`, { email });
   return res.data;
