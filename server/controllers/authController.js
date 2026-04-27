@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const crypto = require("crypto");
 const sendEmail = require("../utils/sendEmail");
 const logActivity = require("../utils/logActivity");
+const queryAsync = require("../utils/queryAsync");
 
 exports.registerUser = async (req, res) => {
   const { name, email, password } = req.body;
@@ -66,7 +67,13 @@ exports.loginUser = (req, res) => {
     }
 
     req.session.userId = user.id;
-    req.session.user = { id: user.id, name: user.name, email: user.email };
+    req.session.user = {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      address: user.address,
+    };
 
     logActivity({
       userId: user.id,
@@ -78,7 +85,13 @@ exports.loginUser = (req, res) => {
 
     res.json({
       message: "Login successful",
-      user: { id: user.id, name: user.name, email: user.email },
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+      },
     });
   });
 };
@@ -106,10 +119,75 @@ exports.logoutUser = (req, res) => {
 };
 
 exports.getMe = (req, res) => {
-  if (req.session.user) {
-    res.json({ user: req.session.user });
-  } else {
+  if (!req.session.userId) {
     res.status(401).json({ message: "Not authenticated" });
+    return;
+  }
+
+  db.query(
+    "SELECT id, name, email, phone, address FROM users WHERE id = ?",
+    [req.session.userId],
+    (err, results) => {
+      if (err) {
+        return res.status(500).json({ message: "Failed to load profile" });
+      }
+
+      if (!results.length) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      req.session.user = results[0];
+      res.json({ user: results[0] });
+    }
+  );
+};
+
+exports.updateMe = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const currentUser = req.session.user;
+    const name = req.body.name?.trim();
+    const email = req.body.email?.trim();
+    const phone = req.body.phone?.trim() || null;
+    const address = req.body.address?.trim() || null;
+
+    if (!name || !email) {
+      return res.status(400).json({ message: "Name and email are required" });
+    }
+
+    if (phone && !/^(09|\+639)\d{9}$/.test(phone)) {
+      return res.status(400).json({ message: "Please enter a valid Philippine mobile number" });
+    }
+
+    const duplicates = await queryAsync(
+      "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
+      [email, userId]
+    );
+
+    if (duplicates.length) {
+      return res.status(400).json({ message: "Email is already used by another account" });
+    }
+
+    await queryAsync(
+      "UPDATE users SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?",
+      [name, email, phone, address, userId]
+    );
+
+    const updatedUser = { id: userId, name, email, phone, address };
+    req.session.user = updatedUser;
+
+    logActivity({
+      userId,
+      userName: name,
+      userEmail: email,
+      action: "Profile updated",
+      details: `${currentUser?.name || name} updated their profile details`,
+    });
+
+    res.json({ message: "Profile updated successfully", user: updatedUser });
+  } catch (err) {
+    console.error("Profile update error:", err);
+    res.status(500).json({ message: "Failed to update profile" });
   }
 };
 

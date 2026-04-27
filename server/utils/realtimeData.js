@@ -3,6 +3,19 @@ const queryAsync = require("./queryAsync");
 const ADMIN_EMAIL = "admin@sabachips.com";
 
 const initRealtimeTables = async () => {
+  const ensureUserColumn = async (definition) => {
+    try {
+      await queryAsync(`ALTER TABLE users ADD COLUMN ${definition}`);
+    } catch (err) {
+      if (err.code !== "ER_DUP_FIELDNAME") {
+        throw err;
+      }
+    }
+  };
+
+  await ensureUserColumn("phone VARCHAR(30) NULL");
+  await ensureUserColumn("address TEXT NULL");
+
   await queryAsync(`
     CREATE TABLE IF NOT EXISTS notifications (
       id INT AUTO_INCREMENT PRIMARY KEY,

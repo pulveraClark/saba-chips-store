@@ -9,6 +9,16 @@
   body { 
     font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   }
+
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  summary:focus-visible {
+    outline: 3px solid #8b5e34;
+    outline-offset: 3px;
+  }
 }
 
 @layer components {
