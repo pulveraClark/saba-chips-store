@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getCart, clearCart } from "../assets/services/cartService.js";
 import { checkout as placeOrder } from "../assets/services/orderService.js";
 import { useCart } from "../context/CartContext.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
 
@@ -20,6 +21,7 @@ function Checkout() {
 
   const { refreshCartCount } = useCart();
   const { refreshProducts } = useProducts();
+  const { notify } = useNotification();
 
   useEffect(() => {
     fetchCart();
@@ -40,12 +42,20 @@ function Checkout() {
     e.preventDefault();
 
     if (!formData.address || !formData.phone) {
-      alert("Please fill all fields");
+      notify({
+        type: "warning",
+        title: "Missing Details",
+        message: "Please complete your delivery address and phone number.",
+      });
       return;
     }
 
     if (cart.length === 0) {
-      alert("Your cart is empty");
+      notify({
+        type: "warning",
+        title: "Cart Empty",
+        message: "Add products to your cart before checkout.",
+      });
       return;
     }
 
@@ -62,10 +72,19 @@ function Checkout() {
 
       setCart([]);
       setOrderSuccess(true);
+      notify({
+        type: "success",
+        title: "Order Confirmed",
+        message: `Order #${result.orderId || "N/A"} was placed successfully.`,
+      });
     } catch (err) {
       const message =
         err?.response?.data?.message || err.message || "Please try again";
-      alert("Checkout failed: " + message);
+      notify({
+        type: "error",
+        title: "Checkout Failed",
+        message,
+      });
     } finally {
       setLoading(false);
     }
@@ -235,6 +254,10 @@ function Checkout() {
                   </div>
                 </div>
               </label>
+
+              <p className="mt-3 text-sm text-[#7a5331]">
+                Cash on Delivery is currently the only supported payment option.
+              </p>
             </div>
 
             <button

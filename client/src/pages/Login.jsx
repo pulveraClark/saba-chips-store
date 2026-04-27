@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { loginUser } from "../assets/services/authService.js";
+import { useAuth } from "../context/AuthContext.jsx";
+import { useCart } from "../context/CartContext.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const { refreshUser } = useAuth();
+  const { refreshCartCount } = useCart();
+  const { notify } = useNotification();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,12 +23,25 @@ function Login() {
 
       if (res.message === "Login successful") {
         const isAdmin = res.user?.email === "admin@sabachips.com";
+        await refreshUser();
+        await refreshCartCount();
+        notify({
+          type: "success",
+          title: "Login Successful",
+          message: `Welcome back, ${res.user?.name || "User"}!`,
+        });
         window.location.href = isAdmin ? "/admin" : "/home";
       } else {
         setError(res.message);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      const message = err.response?.data?.message || "Login failed";
+      setError(message);
+      notify({
+        type: "error",
+        title: "Login Failed",
+        message,
+      });
     } finally {
       setLoading(false);
     }

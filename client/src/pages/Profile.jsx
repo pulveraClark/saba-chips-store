@@ -1,8 +1,13 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getMe } from "../assets/services/authService.js";
-import { getUserOrders } from "../assets/services/orderService.js";
+import OrderTimeline from "../assets/components/OrderTimeline.jsx";
+import {
+  getUserOrders,
+  requestOrderCancellation,
+} from "../assets/services/orderService.js";
 import { sortByNewest } from "../utils/sortByNewest.js";
+import { useNotification } from "../context/NotificationContext.jsx";
 
 function Profile() {
   const [user, setUser] = useState(null);
@@ -12,6 +17,9 @@ function Profile() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
+  const [cancelReasonByOrder, setCancelReasonByOrder] = useState({});
+  const [requestingCancelId, setRequestingCancelId] = useState(null);
+  const { notify } = useNotification();
 
   const ORDERS_PER_PAGE = 5;
 
@@ -52,6 +60,38 @@ function Profile() {
     (page - 1) * ORDERS_PER_PAGE,
     page * ORDERS_PER_PAGE
   );
+
+  const handleCancellationRequest = async (orderId) => {
+    const reason = cancelReasonByOrder[orderId]?.trim();
+    if (!reason) {
+      notify({
+        type: "warning",
+        title: "Reason required",
+        message: "Please include why you want to cancel this order.",
+      });
+      return;
+    }
+
+    try {
+      setRequestingCancelId(orderId);
+      await requestOrderCancellation(orderId, reason);
+      setCancelReasonByOrder((prev) => ({ ...prev, [orderId]: "" }));
+      await fetchProfile(true);
+      notify({
+        type: "success",
+        title: "Request submitted",
+        message: `Cancellation request for Order #${orderId} was sent to admin.`,
+      });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Request failed",
+        message: err?.response?.data?.message || "Could not submit cancellation request.",
+      });
+    } finally {
+      setRequestingCancelId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -257,6 +297,76 @@ function Profile() {
                               </p>
                             </div>
                           ))}
+                        </div>
+
+                        <div className="mt-6 border-t border-[#ead7b8] pt-5">
+                          <h5 className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#7a5331]">
+                            Order Tracking
+                          </h5>
+                          <OrderTimeline
+                            status={order.status}
+                            timeline={order.timeline || []}
+                          />
+                        </div>
+
+                        <div className="mt-6 border-t border-[#ead7b8] pt-5">
+                          <h5 className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#7a5331]">
+                            Cancellation
+                          </h5>
+
+                          {order.cancellation_request ? (
+                            <div className="rounded-2xl border border-[#ead7b8] bg-white p-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                <p className="font-bold text-[#8b5e34]">
+                                  Request status:{" "}
+                                  <span className="capitalize">
+                                    {order.cancellation_request.status}
+                                  </span>
+                                </p>
+                                <p className="text-sm text-[#6d4c2f]">
+                                  {new Date(
+                                    order.cancellation_request.created_at
+                                  ).toLocaleString()}
+                                </p>
+                              </div>
+                              <p className="mt-2 text-sm text-[#6d4c2f]">
+                                Reason: {order.cancellation_request.reason}
+                              </p>
+                              {order.cancellation_request.admin_note && (
+                                <p className="mt-2 text-sm text-[#6d4c2f]">
+                                  Admin note: {order.cancellation_request.admin_note}
+                                </p>
+                              )}
+                            </div>
+                          ) : ["pending", "confirmed"].includes(order.status) ? (
+                            <div className="grid md:grid-cols-[1fr_auto] gap-3">
+                              <textarea
+                                value={cancelReasonByOrder[order.id] || ""}
+                                onChange={(e) =>
+                                  setCancelReasonByOrder((prev) => ({
+                                    ...prev,
+                                    [order.id]: e.target.value,
+                                  }))
+                                }
+                                rows={2}
+                                className="rounded-2xl border border-[#d8be96] px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#8b5e34]"
+                                placeholder="Reason for cancellation"
+                              />
+                              <button
+                                onClick={() => handleCancellationRequest(order.id)}
+                                disabled={requestingCancelId === order.id}
+                                className="rounded-2xl bg-red-600 px-5 py-3 text-white font-black hover:bg-red-700 disabled:opacity-60"
+                              >
+                                {requestingCancelId === order.id
+                                  ? "Sending..."
+                                  : "Request Cancel"}
+                              </button>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-[#6d4c2f]">
+                              Cancellation requests are available only before shipping.
+                            </p>
+                          )}
                         </div>
                       </div>
                     ))}

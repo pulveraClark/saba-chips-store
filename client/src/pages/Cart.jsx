@@ -7,6 +7,7 @@ import {
   clearCart,
 } from "../assets/services/cartService.js";
 import { useCart } from "../context/CartContext.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
 
 function Cart() {
@@ -14,6 +15,7 @@ function Cart() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState({});
   const { refreshCartCount } = useCart();
+  const { notify } = useNotification();
 
   useEffect(() => {
     fetchCart();
@@ -39,7 +41,11 @@ function Cart() {
       await fetchCart();
       await refreshCartCount();
     } catch (err) {
-      alert(err?.response?.data?.message || "Update failed");
+      notify({
+        type: "error",
+        title: "Cart Update Failed",
+        message: err?.response?.data?.message || "Update failed",
+      });
     } finally {
       setUpdating((prev) => ({ ...prev, [id]: false }));
     }
@@ -51,8 +57,17 @@ function Cart() {
         await removeCartItem(id);
         await fetchCart();
         await refreshCartCount();
+        notify({
+          type: "success",
+          title: "Item Removed",
+          message: "The product was removed from your cart.",
+        });
       } catch (err) {
-        alert(err?.response?.data?.message || "Remove failed");
+        notify({
+          type: "error",
+          title: "Remove Failed",
+          message: err?.response?.data?.message || "Remove failed",
+        });
       }
     }
   };
@@ -63,8 +78,17 @@ function Cart() {
         await clearCart();
         await fetchCart();
         await refreshCartCount();
+        notify({
+          type: "success",
+          title: "Cart Cleared",
+          message: "All items were removed from your cart.",
+        });
       } catch (err) {
-        alert(err?.response?.data?.message || "Clear failed");
+        notify({
+          type: "error",
+          title: "Clear Failed",
+          message: err?.response?.data?.message || "Clear failed",
+        });
       }
     }
   };

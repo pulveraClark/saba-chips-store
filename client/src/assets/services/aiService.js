@@ -1,8 +1,4 @@
-import axios from "axios";
-
-const api = axios.create({
-  withCredentials: true,
-});
+import api from "./authService.js";
 
 export const askTasteAssistant = async (message) => {
   const res = await api.post("/api/ai/taste-assistant", { message });

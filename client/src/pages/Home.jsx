@@ -3,28 +3,38 @@ import { Link } from "react-router-dom";
 import { addToCart } from "../assets/services/cartService.js";
 import { askTasteAssistant } from "../assets/services/aiService.js";
 import { useCart } from "../context/CartContext.jsx";
+import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
 
 function Home() {
   const [loading, setLoading] = useState(true);
-  const [cartMessage, setCartMessage] = useState("");
   const [aiMessage, setAiMessage] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
   const [chatMessages, setChatMessages] = useState([
     {
       sender: "ai",
-      text: "Hi! I’m your Saba Chips Taste Assistant. Ask me about flavors, best sellers, or what to buy first.",
+      text: "Hi! Ask me about flavors, prices, stock, best sellers, or what to buy first.",
+      createdAt: new Date().toISOString(),
     },
   ]);
+  const aiQuickPrompts = [
+    "What flavors are available?",
+    "What are the best sellers?",
+    "Show prices",
+    "Suggest for first-time buyer",
+  ];
 
   const chatEndRef = useRef(null);
 
   const { refreshCartCount } = useCart();
   const { products, refreshProducts } = useProducts();
+  const { notify } = useNotification();
 
-  // Product loading runs once on entry; later refreshes happen after cart actions.
   useEffect(() => {
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -53,45 +63,55 @@ function Home() {
       await refreshProducts();
 
       const selectedProduct = products.find((p) => p.id === productId);
-      setCartMessage(`${selectedProduct?.name || "Product"} added to cart!`);
-      setTimeout(() => setCartMessage(""), 3000);
+      notify({
+        type: "success",
+        title: "Added to Cart",
+        message: `${selectedProduct?.name || "Product"} was added to your cart.`,
+      });
     } catch (err) {
-      setCartMessage(
-        err?.response?.data?.message || "Please login to add to cart"
-      );
-      setTimeout(() => setCartMessage(""), 3000);
+      notify({
+        type: "error",
+        title: "Add to Cart Failed",
+        message: err?.response?.data?.message || "Please login to add to cart",
+      });
     }
   };
 
-  const handleAskAI = async () => {
-    if (!aiMessage.trim()) return;
+  const handleAskAI = async (presetMessage) => {
+    const nextMessage = presetMessage || aiMessage;
+    if (!nextMessage.trim()) return;
 
-    const userQuestion = aiMessage.trim();
+    const userQuestion = nextMessage.trim();
 
     setChatMessages((prev) => [
       ...prev,
-      { sender: "user", text: userQuestion },
+      { sender: "user", text: userQuestion, createdAt: new Date().toISOString() },
     ]);
-
     setAiMessage("");
     setAiLoading(true);
 
     try {
       const res = await askTasteAssistant(userQuestion);
-
       setChatMessages((prev) => [
         ...prev,
         {
           sender: "ai",
           text: res.reply || "Sorry, I could not answer that right now.",
+          createdAt: new Date().toISOString(),
         },
       ]);
     } catch {
+      notify({
+        type: "error",
+        title: "Assistant Unavailable",
+        message: "The AI taste assistant is unavailable right now.",
+      });
       setChatMessages((prev) => [
         ...prev,
         {
           sender: "ai",
           text: "Sorry, the AI assistant is unavailable right now.",
+          createdAt: new Date().toISOString(),
         },
       ]);
     } finally {
@@ -106,6 +126,39 @@ function Home() {
     }
   };
 
+  const formatChatTime = (date) =>
+    new Date(date).toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+  const visibleProducts = [...products]
+    .filter((product) => {
+      const matchesSearch =
+        !searchTerm ||
+        product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.description?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStock =
+        stockFilter === "all" ||
+        (stockFilter === "available" && Number(product.stock) > 0) ||
+        (stockFilter === "low" &&
+          Number(product.stock) > 0 &&
+          Number(product.stock) <= 5) ||
+        (stockFilter === "out" && Number(product.stock) <= 0);
+
+      return matchesSearch && matchesStock;
+    })
+    .sort((a, b) => {
+      if (sortBy === "price-asc") return Number(a.price) - Number(b.price);
+      if (sortBy === "price-desc") return Number(b.price) - Number(a.price);
+      if (sortBy === "name") return String(a.name).localeCompare(String(b.name));
+      return (
+        new Date(b.created_at || 0) - new Date(a.created_at || 0) ||
+        Number(b.id) - Number(a.id)
+      );
+    });
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#f8f2e8]">
@@ -118,7 +171,6 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-[#f8f2e8] relative">
-      {/* Hero */}
       <section className="bg-gradient-to-b from-[#f1d7ac] to-[#f8f2e8] pt-28 pb-20">
         <div className="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
           <div>
@@ -146,22 +198,18 @@ function Home() {
               </h2>
 
               <div className="grid sm:grid-cols-2 gap-3 text-[#5f432c]">
-                <div>🧀 Cheese</div>
-                <div>🌿 Sour Cream</div>
-                <div>🍖 Barbecue</div>
-                <div>🌶️ Chili BBQ</div>
-                <div>🧀 Sour Cheese</div>
-                <div>⚪ Plain (No sugar, No Flavor)</div>
+                <div>Cheese</div>
+                <div>Sour Cream</div>
+                <div>Barbecue</div>
+                <div>Chili BBQ</div>
+                <div>Sour Cheese</div>
+                <div>Plain (No sugar, No flavor)</div>
               </div>
             </div>
 
             <div className="bg-[#fff7eb] border border-[#ead7b8] rounded-2xl p-5 mb-8 shadow-sm">
-              <p className="text-[#7a5331] font-semibold mb-2">
-                🚚 Free delivery
-              </p>
-              <p className="text-[#6d4c2f]">
-                Consolacion, Liloan & Compostela
-              </p>
+              <p className="text-[#7a5331] font-semibold mb-2">Free delivery</p>
+              <p className="text-[#6d4c2f]">Consolacion, Liloan & Compostela</p>
             </div>
 
             <div className="flex flex-wrap gap-4">
@@ -192,7 +240,7 @@ function Home() {
                 }}
               />
               <div className="bg-[#fdf7ed] rounded-[1.5rem] p-10 text-center">
-                <div className="text-6xl mb-4">🍌</div>
+                <div className="text-6xl mb-4">Saba</div>
                 <h3 className="text-4xl font-black text-[#8b5e34] mb-3">
                   SABA CHIPS
                 </h3>
@@ -206,26 +254,67 @@ function Home() {
         </div>
       </section>
 
-      {/* Products */}
       <section id="products" className="py-20 bg-[#fffaf2]">
         <div className="max-w-6xl mx-auto px-6">
-          {cartMessage && (
-            <div className="max-w-md mx-auto mb-10 p-4 bg-green-100 border border-green-300 rounded-2xl text-green-800 font-semibold text-center shadow-lg">
-              {cartMessage}
-            </div>
-          )}
-
           <div className="text-center mb-14">
             <h2 className="text-4xl md:text-5xl font-black text-[#8b5e34] mb-4">
               Our Products
             </h2>
             <p className="text-lg text-[#6d4c2f] max-w-2xl mx-auto">
-              Message us now before we sell out again ✨
+              Message us now before we sell out again.
             </p>
           </div>
 
+          <div className="mb-10 grid gap-4 rounded-3xl border border-[#ead7b8] bg-white p-5 shadow-sm md:grid-cols-[1.3fr_0.8fr_0.8fr]">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search by product or flavor..."
+              className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
+            />
+
+            <select
+              value={stockFilter}
+              onChange={(e) => setStockFilter(e.target.value)}
+              className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
+            >
+              <option value="all">All stock levels</option>
+              <option value="available">Available only</option>
+              <option value="low">Low stock</option>
+              <option value="out">Out of stock</option>
+            </select>
+
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
+            >
+              <option value="newest">Newest first</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="name">Name A-Z</option>
+            </select>
+          </div>
+
+          <div className="mb-8 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-[#6d4c2f]">
+            <p>{visibleProducts.length} product(s) shown</p>
+            {(searchTerm || stockFilter !== "all" || sortBy !== "newest") && (
+              <button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStockFilter("all");
+                  setSortBy("newest");
+                }}
+                className="rounded-full border border-[#d8be96] px-4 py-2 hover:bg-[#fff7eb]"
+              >
+                Reset filters
+              </button>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {products.map((product) => (
+            {visibleProducts.map((product) => (
               <div
                 key={product.id}
                 className="bg-white rounded-3xl shadow-lg border border-[#ead7b8] overflow-hidden hover:-translate-y-1 hover:shadow-2xl transition"
@@ -238,7 +327,7 @@ function Home() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="text-7xl">🍟</div>
+                    <div className="text-7xl">Chips</div>
                   )}
                 </div>
 
@@ -253,7 +342,7 @@ function Home() {
 
                   <div className="flex items-center justify-between mb-4">
                     <div className="text-3xl font-black text-[#8b5e34]">
-                      ₱{product.price}
+                      PHP {product.price}
                     </div>
 
                     <div
@@ -289,27 +378,26 @@ function Home() {
             ))}
           </div>
 
-          {products.length === 0 && (
+          {visibleProducts.length === 0 && (
             <div className="text-center py-24">
-              <div className="text-6xl mb-6">📦</div>
+              <div className="text-6xl mb-6">Products</div>
               <h3 className="text-3xl font-bold text-[#8b5e34] mb-3">
-                No products yet
+                No matching products
               </h3>
               <p className="text-[#6d4c2f]">
-                Please check back again soon.
+                Try adjusting your search or stock filters.
               </p>
             </div>
           )}
         </div>
       </section>
 
-      {/* Floating AI Chat */}
       <div className="fixed bottom-6 right-6 z-50">
         {chatOpen && (
           <div className="w-[340px] sm:w-[380px] h-[520px] bg-white border border-[#ead7b8] rounded-3xl shadow-2xl mb-4 overflow-hidden flex flex-col">
             <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] text-white p-4 flex items-center justify-between">
               <div>
-                <h3 className="font-black text-lg">🤖 Taste Assistant</h3>
+                <h3 className="font-black text-lg">Taste Assistant</h3>
                 <p className="text-sm text-[#fff1df]">
                   Ask about flavors and best sellers
                 </p>
@@ -319,7 +407,7 @@ function Home() {
                 onClick={() => setChatOpen(false)}
                 className="text-white text-xl font-bold hover:opacity-80"
               >
-                ×
+                x
               </button>
             </div>
 
@@ -338,7 +426,14 @@ function Home() {
                         : "bg-white text-[#6d4c2f] border border-[#ead7b8] rounded-bl-md"
                     }`}
                   >
-                    {msg.text}
+                    <p className="whitespace-pre-wrap break-words">{msg.text}</p>
+                    <p
+                      className={`mt-2 text-[11px] ${
+                        msg.sender === "user" ? "text-[#fff1df]" : "text-[#9a7654]"
+                      }`}
+                    >
+                      {formatChatTime(msg.createdAt)}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -355,6 +450,19 @@ function Home() {
             </div>
 
             <div className="p-4 border-t border-[#ead7b8] bg-white">
+              <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+                {aiQuickPrompts.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => handleAskAI(prompt)}
+                    disabled={aiLoading}
+                    className="shrink-0 rounded-full border border-[#d8be96] bg-[#fffaf2] px-3 py-2 text-xs font-bold text-[#8b5e34] hover:bg-[#f5e4c9] disabled:opacity-60"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
               <div className="flex gap-2">
                 <textarea
                   rows="2"
@@ -366,7 +474,7 @@ function Home() {
                 />
 
                 <button
-                  onClick={handleAskAI}
+                  onClick={() => handleAskAI()}
                   disabled={aiLoading}
                   className="bg-[#8b5e34] text-white px-4 rounded-2xl font-semibold hover:bg-[#714a28] transition disabled:opacity-60"
                 >
@@ -380,8 +488,9 @@ function Home() {
         <button
           onClick={() => setChatOpen((prev) => !prev)}
           className="w-16 h-16 rounded-full bg-[#8b5e34] text-white shadow-2xl flex items-center justify-center text-2xl hover:bg-[#714a28] transition"
+          title="Taste Assistant"
         >
-          💬
+          🤖
         </button>
       </div>
     </div>
