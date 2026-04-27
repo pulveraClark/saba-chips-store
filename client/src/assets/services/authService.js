@@ -8,6 +8,52 @@ const api = axios.create({
   withCredentials: true,
 });
 
+let csrfToken = null;
+let csrfTokenPromise = null;
+
+const unsafeMethods = new Set(["post", "put", "patch", "delete"]);
+
+const fetchCsrfToken = async () => {
+  if (csrfToken) {
+    return csrfToken;
+  }
+
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = api
+      .get(`${API}/csrf-token`)
+      .then((res) => {
+        csrfToken = res.data.csrfToken;
+        return csrfToken;
+      })
+      .finally(() => {
+        csrfTokenPromise = null;
+      });
+  }
+
+  return csrfTokenPromise;
+};
+
+api.interceptors.request.use(async (config) => {
+  const method = config.method?.toLowerCase();
+  if (unsafeMethods.has(method)) {
+    const token = await fetchCsrfToken();
+    config.headers = config.headers || {};
+    config.headers["x-csrf-token"] = token;
+  }
+
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error?.response?.status === 403) {
+      csrfToken = null;
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const registerUser = async (data) => {
   const res = await api.post(`${API}/register`, data);
   return res.data;

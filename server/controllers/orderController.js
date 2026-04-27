@@ -141,7 +141,7 @@ const syncInventoryForStatusChange = async (orderId, currentStatus, nextStatus) 
 exports.checkout = (req, res) => {
   const userId = req.session.userId;
   const currentUser = req.session.user;
-  const { address, phone } = req.body;
+  const { address, phone, saveProfile } = req.body;
 
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -245,7 +245,7 @@ exports.checkout = (req, res) => {
                   db.query(
                     "DELETE FROM cart_items WHERE user_id = ?",
                     [userId],
-                    (deleteErr) => {
+                    async (deleteErr) => {
                       if (deleteErr) {
                         console.error("Cart clear failed:", deleteErr);
                       }
@@ -270,6 +270,22 @@ exports.checkout = (req, res) => {
                       }).catch((notifyErr) => {
                         console.error("Admin order notification failed:", notifyErr);
                       });
+
+                      if (saveProfile) {
+                        try {
+                          await queryAsync(
+                            "UPDATE users SET address = ?, phone = ? WHERE id = ?",
+                            [address.trim(), phone.trim(), userId]
+                          );
+                          req.session.user = {
+                            ...req.session.user,
+                            address: address.trim(),
+                            phone: phone.trim(),
+                          };
+                        } catch (profileErr) {
+                          console.error("Checkout profile save failed:", profileErr);
+                        }
+                      }
 
                       res.json({
                         message: "Order placed successfully!",

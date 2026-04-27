@@ -25,7 +25,7 @@ export function AuthProvider({ children }) {
     void refreshUser();
   }, []);
 
-  const isAdmin = user?.email === "admin@sabachips.com";
+  const isAdmin = user?.role === "admin" || user?.email === "admin@sabachips.com";
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading, refreshUser, isAdmin }}>

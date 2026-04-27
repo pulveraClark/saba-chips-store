@@ -1,3 +1,5 @@
+const { ADMIN_EMAIL } = require("../utils/realtimeData");
+
 const isAuthenticated = (req, res, next) => {
   if (req.session.userId) {
     next();
@@ -6,13 +8,14 @@ const isAuthenticated = (req, res, next) => {
   }
 };
 
-// NEW: Admin only (email = admin@sabachips.com)
+const userIsAdmin = (user) => user?.role === "admin" || user?.email === ADMIN_EMAIL;
+
 const isAdmin = (req, res, next) => {
-  if (req.session.user && req.session.user.email === 'admin@sabachips.com') {
+  if (userIsAdmin(req.session.user)) {
     next();
   } else {
     res.status(403).json({ message: "Admin access required." });
   }
 };
 
-module.exports = { isAuthenticated, isAdmin };
+module.exports = { isAuthenticated, isAdmin, userIsAdmin };

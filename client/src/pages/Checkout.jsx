@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getCart, clearCart } from "../assets/services/cartService.js";
 import { checkout as placeOrder } from "../assets/services/orderService.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
@@ -13,6 +14,7 @@ function Checkout() {
     address: "",
     phone: "",
     paymentMethod: "Cash on Delivery",
+    saveProfile: true,
   });
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -20,12 +22,23 @@ function Checkout() {
   const [finalTotal, setFinalTotal] = useState(0);
 
   const { refreshCartCount } = useCart();
+  const { user, refreshUser } = useAuth();
   const { refreshProducts } = useProducts();
   const { notify } = useNotification();
 
   useEffect(() => {
     fetchCart();
   }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      address: prev.address || user.address || "",
+      phone: prev.phone || user.phone || "",
+    }));
+  }, [user]);
 
   const fetchCart = async () => {
     try {
@@ -69,6 +82,9 @@ function Checkout() {
       await clearCart();
       await refreshCartCount();
       await refreshProducts();
+      if (formData.saveProfile) {
+        await refreshUser();
+      }
 
       setCart([]);
       setOrderSuccess(true);
@@ -209,6 +225,25 @@ function Checkout() {
                 required
               />
             </div>
+
+            <label className="flex items-start gap-3 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
+              <input
+                type="checkbox"
+                checked={formData.saveProfile}
+                onChange={(e) =>
+                  setFormData({ ...formData, saveProfile: e.target.checked })
+                }
+                className="mt-1 h-5 w-5"
+              />
+              <span>
+                <span className="block font-semibold text-[#8b5e34]">
+                  Save as my default delivery details
+                </span>
+                <span className="text-sm text-[#6d4c2f]">
+                  Next checkout will prefill this address and phone number.
+                </span>
+              </span>
+            </label>
 
             <div>
               <label className="block text-sm font-semibold text-[#6d4c2f] mb-3">

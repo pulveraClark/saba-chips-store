@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { getConversations, getMessages, sendMessage } from "../assets/services/chatService.js";
+import {
+  getChatEventsUrl,
+  getConversations,
+  getMessages,
+  sendMessage,
+} from "../assets/services/chatService.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 
@@ -59,14 +64,23 @@ function Messages() {
   }, [fetchMessages, selectedUserId, isAdmin]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      void fetchConversations();
+    const source = new EventSource(getChatEventsUrl(), { withCredentials: true });
+
+    source.onmessage = (event) => {
+      const payload = JSON.parse(event.data);
+      if (payload.type !== "chat:update") return;
+
       if (selectedUserId || !isAdmin) {
         void fetchMessages(selectedUserId);
       }
-    }, 2000);
+      void fetchConversations();
+    };
 
-    return () => window.clearInterval(timer);
+    source.onerror = () => {
+      source.close();
+    };
+
+    return () => source.close();
   }, [fetchConversations, fetchMessages, selectedUserId, isAdmin]);
 
   useEffect(() => {
