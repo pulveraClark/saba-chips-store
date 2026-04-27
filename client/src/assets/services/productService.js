@@ -6,6 +6,13 @@ export const getProducts = async () => {
   return res.data.products;
 };
 
+export const getTopSellingProducts = async (limit = 5) => {
+  const res = await api.get("/api/products/top-selling", {
+    params: { limit },
+  });
+  return res.data.products;
+};
+
 // CREATE
 export const createProduct = async (formData) => {
   const res = await api.post("/api/products", formData, {

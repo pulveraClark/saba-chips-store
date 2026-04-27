@@ -6,12 +6,14 @@ const upload = require("../middleware/uploadMiddleware");
 
 const {
   getAllProducts,
+  getTopSellingProducts,
   createProduct,
   updateProduct,
   deleteProduct
 } = require("../controllers/productController");
 
 // Public: users can view products
+router.get("/top-selling", getTopSellingProducts);
 router.get("/", getAllProducts);
 
 // Admin-only

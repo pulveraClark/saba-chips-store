@@ -4,6 +4,7 @@ const path = require("path");
 const logActivity = require("../utils/logActivity");
 const queryAsync = require("../utils/queryAsync");
 const notifyLowStockProducts = require("../utils/stockAlerts");
+const getTopSellingProducts = require("../utils/topSellingProducts");
 
 exports.getAllProducts = async (req, res) => {
   try {
@@ -33,6 +34,23 @@ exports.getAllProducts = async (req, res) => {
   } catch (err) {
     console.error("Failed to fetch products:", err);
     res.status(500).json({ message: "Failed to fetch products" });
+  }
+};
+
+exports.getTopSellingProducts = async (req, res) => {
+  try {
+    const limit = req.query.limit || 5;
+    const products = await getTopSellingProducts(limit);
+
+    res.json({
+      products: products.map((product) => ({
+        ...product,
+        total_quantity: Number(product.total_quantity || 0),
+      })),
+    });
+  } catch (err) {
+    console.error("Failed to fetch top selling products:", err);
+    res.status(500).json({ message: "Failed to fetch top selling products" });
   }
 };
 

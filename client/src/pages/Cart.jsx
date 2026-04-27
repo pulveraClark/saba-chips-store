@@ -10,6 +10,29 @@ import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
 
+const iconPaths = {
+  bag: "M6 8h12l-1 13H7L6 8Zm3 0a3 3 0 0 1 6 0",
+  shield: "M12 3 5 6v5c0 5 3.5 8.5 7 10 3.5-1.5 7-5 7-10V6l-7-3Z",
+  truck: "M3 7h11v9H3V7Zm11 3h4l3 3v3h-7v-6ZM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z",
+};
+
+function Icon({ name, className = "h-5 w-5" }) {
+  return (
+    <svg
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d={iconPaths[name]} />
+    </svg>
+  );
+}
+
 function Cart() {
   const [cart, setCart] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,51 +117,65 @@ function Cart() {
   };
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#f8f2e8] flex items-center justify-center">
-        <div className="text-2xl text-[#8b5e34] animate-pulse">Loading cart...</div>
+      <div className="flex min-h-screen items-center justify-center bg-[#f8f2e8]">
+        <div className="rounded-2xl border border-[#ead7b8] bg-white px-6 py-4 text-xl font-black text-[#8b5e34] shadow-sm">
+          Loading cart...
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f8f2e8] py-12">
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] rounded-[2rem] p-8 text-white shadow-xl mb-8">
-          <h1 className="text-4xl md:text-5xl font-black mb-3">Your Cart</h1>
-          <p className="text-[#fff1df] text-lg">
-            Review your selected Saba Chips before checkout.
+    <div className="min-h-screen bg-[#f8f2e8] py-10">
+      <div className="mx-auto max-w-6xl px-6">
+        <div className="mb-8 rounded-[2rem] border border-[#d8be96] bg-[#5f432c] p-8 text-white shadow-xl">
+          <p className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#ffe2ad]">
+            Order Review
+          </p>
+          <h1 className="mb-3 text-4xl font-black md:text-5xl">Your Cart</h1>
+          <p className="max-w-2xl text-[#fff1df]">
+            Check quantities, remove items you no longer want, then continue to
+            delivery and payment details.
           </p>
         </div>
 
         {cart.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-xl border border-[#ead7b8] text-center py-24 px-8">
-            <div className="text-7xl mb-6">🛒</div>
-            <h2 className="text-3xl font-black text-[#8b5e34] mb-4">
+          <div className="rounded-[2rem] border border-[#ead7b8] bg-white px-8 py-24 text-center shadow-sm">
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-[#f1dfc2] text-[#8b5e34]">
+              <Icon name="bag" className="h-9 w-9" />
+            </div>
+            <h2 className="mb-4 text-3xl font-black text-[#8b5e34]">
               Your cart is empty
             </h2>
-            <p className="text-[#6d4c2f] text-lg mb-8">
-              Add some delicious Saba Chips to get started.
+            <p className="mb-8 text-lg text-[#6d4c2f]">
+              Add freshly cooked Saba Chips to start your order.
             </p>
             <Link
-              to="/home"
-              className="inline-block bg-[#8b5e34] text-white px-10 py-4 rounded-2xl font-semibold hover:bg-[#714a28] transition"
+              to="/home#products"
+              className="inline-flex rounded-2xl bg-[#8b5e34] px-10 py-4 font-black text-white transition hover:bg-[#714a28]"
             >
-              Continue Shopping
+              Shop Products
             </Link>
           </div>
         ) : (
-          <div className="grid lg:grid-cols-[1.6fr_0.9fr] gap-8">
-            <div className="bg-white rounded-3xl shadow-xl border border-[#ead7b8] overflow-hidden">
-              <div className="flex items-center justify-between px-8 py-6 bg-[#fff7eb] border-b border-[#ead7b8]">
-                <h2 className="text-2xl font-black text-[#8b5e34]">
-                  Cart Items
-                </h2>
+          <div className="grid gap-8 lg:grid-cols-[1.55fr_0.9fr]">
+            <div className="overflow-hidden rounded-[2rem] border border-[#ead7b8] bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-[#ead7b8] bg-[#fff7eb] px-6 py-5">
+                <div>
+                  <h2 className="text-2xl font-black text-[#5f432c]">
+                    Cart Items
+                  </h2>
+                  <p className="text-sm text-[#7a5331]">
+                    {itemCount} total pack(s) in this order
+                  </p>
+                </div>
                 <button
                   onClick={handleClearCart}
-                  className="text-red-600 hover:text-red-700 font-semibold"
+                  className="rounded-full px-4 py-2 text-sm font-black text-[#b6402e] hover:bg-[#fff0ec]"
                 >
                   Clear Cart
                 </button>
@@ -146,97 +183,128 @@ function Cart() {
 
               <div className="divide-y divide-[#f1e3ca]">
                 {cart.map((item) => (
-                  <div key={item.id} className="p-6 flex gap-5 items-center">
-                    <div className="w-24 h-24 bg-[#f8f2e8] rounded-2xl flex items-center justify-center overflow-hidden flex-shrink-0">
+                  <div
+                    key={item.id}
+                    className="grid gap-5 p-6 md:grid-cols-[112px_1fr_auto] md:items-center"
+                  >
+                    <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl bg-[#f8f2e8]">
                       {item.image ? (
                         <img
                           src={getMediaUrl(item.image)}
                           alt={item.name}
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
                         />
                       ) : (
-                        <span className="text-4xl">🍟</span>
+                        <span className="px-3 text-center text-sm font-black text-[#8b5e34]">
+                          Saba Chips
+                        </span>
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-xl font-bold text-[#8b5e34] mb-1">
+                    <div className="min-w-0">
+                      <h3 className="mb-1 text-xl font-black text-[#5f432c]">
                         {item.name}
                       </h3>
-                      <p className="text-[#6d4c2f] text-sm mb-3">
+                      <p className="mb-4 text-sm leading-relaxed text-[#6d4c2f]">
                         {item.description || "Freshly cooked banana chips"}
                       </p>
-                      <p className="text-2xl font-black text-[#8b5e34]">
-                        ₱{(item.price * item.quantity).toLocaleString()}
-                      </p>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <p className="text-2xl font-black text-[#8b5e34]">
+                          PHP {(item.price * item.quantity).toLocaleString()}
+                        </p>
+                        <span className="rounded-full bg-[#fff7eb] px-3 py-1 text-xs font-bold text-[#7a5331]">
+                          PHP {Number(item.price).toLocaleString()} each
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() =>
-                          handleQuantityChange(item.id, item.quantity - 1)
-                        }
-                        disabled={updating[item.id] || item.quantity <= 1}
-                        className="w-11 h-11 rounded-xl bg-[#ead7b8] text-[#8b5e34] font-bold disabled:opacity-50"
-                      >
-                        -
-                      </button>
+                    <div className="flex flex-wrap items-center gap-3 md:justify-end">
+                      <div className="flex items-center rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-1">
+                        <button
+                          onClick={() =>
+                            handleQuantityChange(item.id, item.quantity - 1)
+                          }
+                          disabled={updating[item.id] || item.quantity <= 1}
+                          className="h-10 w-10 rounded-xl font-black text-[#8b5e34] hover:bg-white disabled:opacity-40"
+                        >
+                          -
+                        </button>
 
-                      <span className="min-w-[2rem] text-center text-lg font-bold text-[#8b5e34]">
-                        {updating[item.id] ? "..." : item.quantity}
-                      </span>
+                        <span className="min-w-10 text-center font-black text-[#5f432c]">
+                          {updating[item.id] ? "..." : item.quantity}
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            handleQuantityChange(item.id, item.quantity + 1)
+                          }
+                          disabled={updating[item.id]}
+                          className="h-10 w-10 rounded-xl font-black text-[#8b5e34] hover:bg-white disabled:opacity-40"
+                        >
+                          +
+                        </button>
+                      </div>
 
                       <button
-                        onClick={() =>
-                          handleQuantityChange(item.id, item.quantity + 1)
-                        }
-                        disabled={updating[item.id]}
-                        className="w-11 h-11 rounded-xl bg-[#ead7b8] text-[#8b5e34] font-bold disabled:opacity-50"
+                        onClick={() => handleRemove(item.id)}
+                        className="rounded-full px-4 py-2 text-sm font-black text-[#b6402e] hover:bg-[#fff0ec]"
                       >
-                        +
+                        Remove
                       </button>
                     </div>
-
-                    <button
-                      onClick={() => handleRemove(item.id)}
-                      className="text-red-500 hover:text-red-600 font-semibold"
-                    >
-                      Remove
-                    </button>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-xl border border-[#ead7b8] p-8 h-fit">
-              <h2 className="text-2xl font-black text-[#8b5e34] mb-6">
+            <aside className="h-fit rounded-[2rem] border border-[#ead7b8] bg-white p-6 shadow-sm">
+              <h2 className="mb-6 text-2xl font-black text-[#5f432c]">
                 Order Summary
               </h2>
 
-              <div className="space-y-4 mb-8">
+              <div className="mb-6 space-y-4">
                 <div className="flex justify-between text-[#6d4c2f]">
-                  <span>Unique Products</span>
-                  <span className="font-semibold">{cart.length}</span>
+                  <span>Unique products</span>
+                  <span className="font-black">{cart.length}</span>
                 </div>
                 <div className="flex justify-between text-[#6d4c2f]">
-                  <span>Total Items</span>
-                  <span className="font-semibold">
-                    {cart.reduce((sum, item) => sum + item.quantity, 0)}
-                  </span>
+                  <span>Total packs</span>
+                  <span className="font-black">{itemCount}</span>
                 </div>
-                <div className="flex justify-between text-3xl font-black text-[#8b5e34] pt-4 border-t border-[#ead7b8]">
-                  <span>Total</span>
-                  <span>₱{total.toLocaleString()}</span>
+                <div className="flex justify-between text-[#6d4c2f]">
+                  <span>Delivery</span>
+                  <span className="font-black">Calculated at checkout</span>
+                </div>
+                <div className="border-t border-[#ead7b8] pt-5">
+                  <div className="flex justify-between text-3xl font-black text-[#5f432c]">
+                    <span>Total</span>
+                    <span>PHP {total.toLocaleString()}</span>
+                  </div>
                 </div>
               </div>
 
               <Link
                 to="/checkout"
-                className="block w-full text-center bg-[#8b5e34] text-white py-4 rounded-2xl font-semibold hover:bg-[#714a28] transition"
+                className="block w-full rounded-2xl bg-[#8b5e34] py-4 text-center font-black text-white transition hover:bg-[#714a28]"
               >
                 Proceed to Checkout
               </Link>
-            </div>
+
+              <div className="mt-6 grid gap-3">
+                {[
+                  ["truck", "Free delivery in Consolacion, Liloan, and Compostela"],
+                  ["shield", "Cash on Delivery available for local orders"],
+                ].map(([icon, text]) => (
+                  <div
+                    key={text}
+                    className="flex gap-3 rounded-2xl bg-[#fffaf2] p-4 text-sm text-[#6d4c2f]"
+                  >
+                    <Icon name={icon} className="h-5 w-5 shrink-0 text-[#8b5e34]" />
+                    <span>{text}</span>
+                  </div>
+                ))}
+              </div>
+            </aside>
           </div>
         )}
       </div>
