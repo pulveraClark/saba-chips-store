@@ -96,8 +96,11 @@ function Admin() {
   const stockRisk =
     Number(summary.lowStockProducts || 0) + Number(summary.outOfStockProducts || 0);
   const activeOrders =
+    Number(summary.paymentVerificationOrders || 0) +
     Number(summary.pendingOrders || 0) +
     Number(summary.confirmedOrders || 0) +
+    Number(summary.preparingOrders || 0) +
+    Number(summary.outForDeliveryOrders || 0) +
     Number(summary.shippedOrders || 0);
 
   const metrics = [
@@ -283,9 +286,11 @@ function Admin() {
 
             <div className="space-y-4">
               {[
+                ["Payment Check", summary.paymentVerificationOrders || 0, "bg-orange-50", "text-orange-700"],
                 ["Pending", summary.pendingOrders || 0, "bg-[#fff6da]", "text-[#8b5e34]"],
                 ["Confirmed", summary.confirmedOrders || 0, "bg-blue-50", "text-blue-700"],
-                ["Shipped", summary.shippedOrders || 0, "bg-indigo-50", "text-indigo-700"],
+                ["Preparing", summary.preparingOrders || 0, "bg-cyan-50", "text-cyan-700"],
+                ["Out for Delivery", summary.outForDeliveryOrders || 0, "bg-indigo-50", "text-indigo-700"],
                 ["Delivered", summary.deliveredOrders || 0, "bg-green-50", "text-green-700"],
                 ["Cancelled", summary.cancelledOrders || 0, "bg-red-50", "text-red-700"],
               ].map(([label, value, bg, text]) => (
@@ -300,42 +305,6 @@ function Admin() {
             </div>
           </section>
         </div>
-
-        <section className="rounded-[2rem] border border-[#ead7b8] bg-white p-6 shadow-sm md:p-8">
-          <div className="mb-6 flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#fff6da] text-[#8b5e34]">
-              <Icon name="alert" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black text-[#5f432c]">
-                Real-world checklist
-              </h2>
-              <p className="mt-1 text-[#6d4c2f]">
-                These are the operational details that make the store feel ready
-                beyond the classroom.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {[
-              ["Product photos", "Use clear pack photos for every item."],
-              ["Stock discipline", "Update inventory after every production batch."],
-              ["Delivery notes", "Confirm landmarks and preferred delivery time."],
-            ].map(([title, text]) => (
-              <div
-                key={title}
-                className="rounded-2xl border border-[#ead7b8] bg-[#fffaf2] p-5"
-              >
-                <h3 className="font-black text-[#5f432c]">{title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[#6d4c2f]">
-                  {text}
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
-
         <div className="mt-12 text-center text-[#7a5331]">
           <p>Admin Panel - Saba Chips</p>
         </div>

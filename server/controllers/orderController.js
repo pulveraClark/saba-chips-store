@@ -7,9 +7,16 @@ const notifyLowStockProducts = require("../utils/stockAlerts");
 const ORDER_TIMELINE_ACTIONS = [
   "Checkout completed",
   "Order status updated",
+  "Payment reviewed",
   "Cancellation requested",
   "Cancellation request reviewed",
 ];
+
+const PAYMENT_METHODS = ["Cash on Delivery", "GCash"];
+const GCASH_DETAILS = {
+  accountName: process.env.GCASH_ACCOUNT_NAME || "CL**K ED**L P.",
+  number: process.env.GCASH_NUMBER || "09274482261",
+};
 
 const buildOrderTimelineMap = async (orderIds) => {
   if (!orderIds.length) {
@@ -48,7 +55,9 @@ const buildOrderTimelineMap = async (orderIds) => {
     } else if (log.action === "Cancellation requested") {
       status = "cancellation requested";
     } else {
-      const statusMatch = log.details?.match(/\bto\s+(pending|confirmed|shipped|delivered|cancelled|approved|rejected)\b/i);
+      const statusMatch = log.details?.match(
+        /\bto\s+(payment_verification|pending|confirmed|preparing|out_for_delivery|shipped|delivered|cancelled|approved|rejected|refunded)\b/i
+      );
       if (statusMatch) {
         status = statusMatch[1].toLowerCase();
       }
@@ -139,10 +148,32 @@ const syncInventoryForStatusChange = async (orderId, currentStatus, nextStatus) 
   }
 };
 
+const markRefundPendingIfPaidGcash = async (orderId) => {
+  const result = await queryAsync(
+    `UPDATE orders
+     SET payment_status = 'refund_pending'
+     WHERE id = ?
+       AND payment_method = 'GCash'
+       AND payment_status = 'verified'`,
+    [orderId]
+  );
+
+  return result.affectedRows > 0;
+};
+
 exports.checkout = (req, res) => {
   const userId = req.session.userId;
   const currentUser = req.session.user;
-  const { address, phone, saveProfile } = req.body;
+  const {
+    address,
+    phone,
+    saveProfile,
+    paymentMethod = "Cash on Delivery",
+    deliveryArea = "",
+    notes = "",
+    paymentReference = "",
+  } = req.body;
+  const paymentProofImage = req.file ? `/uploads/${req.file.filename}` : null;
 
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
@@ -154,6 +185,14 @@ exports.checkout = (req, res) => {
 
   if (!/^(09|\+639)\d{9}$/.test(phone.trim())) {
     return res.status(400).json({ message: "Please enter a valid Philippine mobile number" });
+  }
+
+  if (!PAYMENT_METHODS.includes(paymentMethod)) {
+    return res.status(400).json({ message: "Invalid payment method" });
+  }
+
+  if (paymentMethod === "GCash" && !paymentProofImage) {
+    return res.status(400).json({ message: "Please upload your GCash payment proof" });
   }
 
   db.query(
@@ -194,9 +233,33 @@ exports.checkout = (req, res) => {
       );
 
       db.query(
-        `INSERT INTO orders (user_id, total, address, phone, payment_method)
-         VALUES (?, ?, ?, ?, ?)`,
-        [userId, total, address.trim(), phone.trim(), "Cash on Delivery"],
+        `INSERT INTO orders (
+           user_id,
+           total,
+           address,
+           phone,
+           payment_method,
+           status,
+           delivery_area,
+           order_notes,
+           payment_status,
+           payment_proof_image,
+           payment_reference
+         )
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          userId,
+          total,
+          address.trim(),
+          phone.trim(),
+          paymentMethod,
+          paymentMethod === "GCash" ? "payment_verification" : "pending",
+          deliveryArea?.trim() || null,
+          notes?.trim() || null,
+          paymentMethod === "GCash" ? "pending_verification" : "cod",
+          paymentProofImage,
+          paymentReference?.trim() || null,
+        ],
         (err, orderResult) => {
           if (err) {
             console.error("Order insert failed:", err);
@@ -260,7 +323,7 @@ exports.checkout = (req, res) => {
                         userName: currentUser?.name,
                         userEmail: currentUser?.email,
                         action: "Checkout completed",
-                        details: `${currentUser?.name || "User"} placed Order #${orderId} with items: ${itemsText}`,
+                        details: `${currentUser?.name || "User"} placed Order #${orderId} with ${paymentMethod}. Items: ${itemsText}`,
                       });
 
                       notifyAdmin({
@@ -272,7 +335,7 @@ exports.checkout = (req, res) => {
                         console.error("Admin order notification failed:", notifyErr);
                       });
 
-                      if (saveProfile) {
+                      if (saveProfile === true || saveProfile === "true") {
                         try {
                           await queryAsync(
                             "UPDATE users SET address = ?, phone = ? WHERE id = ?",
@@ -324,6 +387,14 @@ exports.getUserOrders = (req, res) => {
         o.id,
         o.total,
         o.status,
+        o.delivery_area,
+        o.order_notes,
+        o.payment_method,
+        o.payment_status,
+        o.payment_reference,
+        o.payment_proof_image,
+        o.payment_review_note,
+        o.payment_reviewed_at,
         o.created_at,
         cr.id AS cancellation_request_id,
         cr.status AS cancellation_status,
@@ -336,7 +407,8 @@ exports.getUserOrders = (req, res) => {
         oi.price,
         pr.id AS review_id,
         pr.rating AS review_rating,
-        pr.comment AS review_comment
+        pr.comment AS review_comment,
+        pr.image AS review_image
      FROM orders o
      JOIN order_items oi ON o.id = oi.order_id
      JOIN products p ON oi.product_id = p.id
@@ -366,6 +438,14 @@ exports.getUserOrders = (req, res) => {
             id: row.id,
             total: row.total,
             status: row.status,
+            delivery_area: row.delivery_area,
+            order_notes: row.order_notes,
+            payment_method: row.payment_method,
+            payment_status: row.payment_status,
+            payment_reference: row.payment_reference,
+            payment_proof_image: row.payment_proof_image,
+            payment_review_note: row.payment_review_note,
+            payment_reviewed_at: row.payment_reviewed_at,
             created_at: row.created_at,
             cancellation_request: row.cancellation_request_id
               ? {
@@ -390,6 +470,7 @@ exports.getUserOrders = (req, res) => {
                 id: row.review_id,
                 rating: row.review_rating,
                 comment: row.review_comment,
+                image: row.review_image,
               }
             : null,
         });
@@ -419,6 +500,13 @@ exports.getAllOrders = (req, res) => {
         o.address,
         o.phone,
         o.payment_method,
+        o.delivery_area,
+        o.order_notes,
+        o.payment_status,
+        o.payment_reference,
+        o.payment_proof_image,
+        o.payment_review_note,
+        o.payment_reviewed_at,
         cr.id AS cancellation_request_id,
         cr.status AS cancellation_status,
         cr.reason AS cancellation_reason,
@@ -460,6 +548,13 @@ exports.getAllOrders = (req, res) => {
             address: row.address,
             phone: row.phone,
             payment_method: row.payment_method,
+            delivery_area: row.delivery_area,
+            order_notes: row.order_notes,
+            payment_status: row.payment_status,
+            payment_reference: row.payment_reference,
+            payment_proof_image: row.payment_proof_image,
+            payment_review_note: row.payment_review_note,
+            payment_reviewed_at: row.payment_reviewed_at,
             created_at: row.created_at,
             cancellation_request: row.cancellation_request_id
               ? {
@@ -498,7 +593,16 @@ exports.updateOrderStatus = (req, res) => {
   const { status } = req.body;
   const currentUser = req.session.user;
 
-  const allowedStatuses = ["pending", "confirmed", "shipped", "delivered", "cancelled"];
+  const allowedStatuses = [
+    "payment_verification",
+    "pending",
+    "confirmed",
+    "preparing",
+    "out_for_delivery",
+    "shipped",
+    "delivered",
+    "cancelled",
+  ];
 
   if (!allowedStatuses.includes(status)) {
     return res.status(400).json({ message: "Invalid status" });
@@ -513,10 +617,12 @@ exports.updateOrderStatus = (req, res) => {
       const currentStatus = rows[0].status;
       await syncInventoryForStatusChange(id, currentStatus, status);
 
-      return queryAsync("UPDATE orders SET status = ? WHERE id = ?", [status, id]).then((result) => {
+      return queryAsync("UPDATE orders SET status = ? WHERE id = ?", [status, id]).then(async (result) => {
         if (result.affectedRows === 0) {
           return res.status(404).json({ message: "Order not found" });
         }
+
+        const refundPending = status === "cancelled" ? await markRefundPendingIfPaidGcash(id) : false;
 
         logActivity({
           userId: currentUser?.id,
@@ -530,7 +636,9 @@ exports.updateOrderStatus = (req, res) => {
           userId: rows[0].user_id,
           type: status === "cancelled" ? "warning" : "info",
           title: "Order status updated",
-          message: `Order #${id} is now ${status}.`,
+          message: refundPending
+            ? `Order #${id} is now cancelled. Your verified GCash payment is marked for refund.`
+            : `Order #${id} is now ${status}.`,
           link: "/profile",
         }).catch((notifyErr) => {
           console.error("Customer status notification failed:", notifyErr);
@@ -571,7 +679,7 @@ exports.requestCancellation = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    if (["shipped", "delivered", "cancelled"].includes(orders[0].status)) {
+    if (["out_for_delivery", "shipped", "delivered", "cancelled"].includes(orders[0].status)) {
       return res.status(400).json({
         message: "This order can no longer be requested for cancellation",
       });
@@ -617,6 +725,130 @@ exports.requestCancellation = async (req, res) => {
   }
 };
 
+exports.getPaymentSettings = (req, res) => {
+  res.json({
+    gcash: GCASH_DETAILS,
+    methods: PAYMENT_METHODS,
+  });
+};
+
+exports.reviewPayment = async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const orderId = req.params.id;
+    const { decision, note = "" } = req.body;
+
+    if (!["approved", "rejected"].includes(decision)) {
+      return res.status(400).json({ message: "Decision must be approved or rejected" });
+    }
+
+    const rows = await queryAsync(
+      "SELECT id, user_id, payment_method, payment_status, status FROM orders WHERE id = ?",
+      [orderId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (rows[0].payment_method !== "GCash") {
+      return res.status(400).json({ message: "Only GCash orders need payment review" });
+    }
+
+    const nextPaymentStatus = decision === "approved" ? "verified" : "rejected";
+    const nextOrderStatus = decision === "approved" ? "pending" : "payment_verification";
+
+    await queryAsync(
+      `UPDATE orders
+       SET payment_status = ?,
+           status = ?,
+           payment_review_note = ?,
+           payment_reviewed_at = NOW()
+       WHERE id = ?`,
+      [nextPaymentStatus, nextOrderStatus, note.trim() || null, orderId]
+    );
+
+    logActivity({
+      userId: currentUser?.id,
+      userName: currentUser?.name,
+      userEmail: currentUser?.email,
+      action: "Payment reviewed",
+      details: `${currentUser?.name || "Admin"} ${decision} GCash payment for Order #${orderId} to ${nextOrderStatus}`,
+    });
+
+    await createNotification({
+      userId: rows[0].user_id,
+      type: decision === "approved" ? "success" : "warning",
+      title: "GCash payment reviewed",
+      message:
+        decision === "approved"
+          ? `Your GCash payment for Order #${orderId} was verified.`
+          : `Your GCash payment for Order #${orderId} needs checking. ${note || ""}`.trim(),
+      link: "/profile",
+    });
+
+    res.json({ message: "Payment reviewed" });
+  } catch (err) {
+    console.error("Failed to review payment:", err);
+    res.status(500).json({ message: "Failed to review payment" });
+  }
+};
+
+exports.markRefunded = async (req, res) => {
+  try {
+    const currentUser = req.session.user;
+    const orderId = req.params.id;
+    const { note = "" } = req.body;
+
+    const rows = await queryAsync(
+      "SELECT id, user_id, payment_method, payment_status FROM orders WHERE id = ?",
+      [orderId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (rows[0].payment_method !== "GCash") {
+      return res.status(400).json({ message: "Only GCash orders can be marked refunded" });
+    }
+
+    if (rows[0].payment_status !== "refund_pending") {
+      return res.status(400).json({ message: "Only refund pending orders can be marked refunded" });
+    }
+
+    await queryAsync(
+      `UPDATE orders
+       SET payment_status = 'refunded',
+           payment_review_note = ?,
+           payment_reviewed_at = NOW()
+       WHERE id = ?`,
+      [note.trim() || "GCash refund completed", orderId]
+    );
+
+    logActivity({
+      userId: currentUser?.id,
+      userName: currentUser?.name,
+      userEmail: currentUser?.email,
+      action: "Payment reviewed",
+      details: `${currentUser?.name || "Admin"} marked GCash refund for Order #${orderId} to refunded`,
+    });
+
+    await createNotification({
+      userId: rows[0].user_id,
+      type: "success",
+      title: "GCash refund completed",
+      message: `Your GCash refund for Order #${orderId} was marked as completed.`,
+      link: "/profile",
+    });
+
+    res.json({ message: "Refund marked as completed" });
+  } catch (err) {
+    console.error("Failed to mark refund completed:", err);
+    res.status(500).json({ message: "Failed to mark refund completed" });
+  }
+};
+
 exports.reviewCancellationRequest = async (req, res) => {
   try {
     const currentUser = req.session.user;
@@ -629,7 +861,14 @@ exports.reviewCancellationRequest = async (req, res) => {
     }
 
     const requests = await queryAsync(
-      `SELECT cr.id, cr.order_id, cr.user_id, cr.status AS request_status, o.status AS order_status
+      `SELECT
+         cr.id,
+         cr.order_id,
+         cr.user_id,
+         cr.status AS request_status,
+         o.status AS order_status,
+         o.payment_method,
+         o.payment_status
        FROM order_cancellation_requests cr
        JOIN orders o ON cr.order_id = o.id
        WHERE cr.id = ?`,
@@ -645,9 +884,11 @@ exports.reviewCancellationRequest = async (req, res) => {
       return res.status(400).json({ message: "Cancellation request is already reviewed" });
     }
 
+    let refundPending = false;
     if (decision === "approved") {
       await syncInventoryForStatusChange(request.order_id, request.order_status, "cancelled");
       await queryAsync("UPDATE orders SET status = 'cancelled' WHERE id = ?", [request.order_id]);
+      refundPending = await markRefundPendingIfPaidGcash(request.order_id);
     }
 
     await queryAsync(
@@ -671,7 +912,9 @@ exports.reviewCancellationRequest = async (req, res) => {
       title: "Cancellation request reviewed",
       message:
         decision === "approved"
-          ? `Your cancellation request for Order #${request.order_id} was approved.`
+          ? refundPending
+            ? `Your cancellation request for Order #${request.order_id} was approved. Your verified GCash payment is marked for refund.`
+            : `Your cancellation request for Order #${request.order_id} was approved.`
           : `Your cancellation request for Order #${request.order_id} was rejected.`,
       link: "/profile",
     });

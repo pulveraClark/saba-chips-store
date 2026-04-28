@@ -9,12 +9,16 @@ import {
 } from "../assets/services/orderService.js";
 import { sortByNewest } from "../utils/sortByNewest.js";
 import { useNotification } from "../context/NotificationContext.jsx";
+import { getMediaUrl } from "../utils/media.js";
 
 const ORDERS_PER_PAGE = 5;
 
 const statusStyles = {
+  payment_verification: "bg-orange-100 text-orange-800 border-orange-200",
   pending: "bg-amber-100 text-amber-800 border-amber-200",
   confirmed: "bg-blue-100 text-blue-800 border-blue-200",
+  preparing: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  out_for_delivery: "bg-purple-100 text-purple-800 border-purple-200",
   shipped: "bg-violet-100 text-violet-800 border-violet-200",
   delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   cancelled: "bg-red-100 text-red-800 border-red-200",
@@ -85,7 +89,7 @@ function Profile() {
   const filteredOrders = useMemo(() => {
     if (orderFilter === "active") {
       return sortedOrders.filter((order) =>
-        ["pending", "confirmed", "shipped"].includes(order.status)
+        ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery", "shipped"].includes(order.status)
       );
     }
     if (orderFilter === "completed") {
@@ -97,7 +101,7 @@ function Profile() {
     return sortedOrders;
   }, [orderFilter, sortedOrders]);
   const activeOrders = sortedOrders.filter((order) =>
-    ["pending", "confirmed", "shipped"].includes(order.status)
+    ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery", "shipped"].includes(order.status)
   );
   const totalSpent = sortedOrders.reduce((sum, order) => sum + Number(order.total), 0);
   const latestStatus = sortedOrders[0]?.status || "No orders yet";
@@ -174,6 +178,7 @@ function Profile() {
         productId,
         rating: Number(form.rating),
         comment: form.comment || "",
+        image: form.image || null,
       });
       await fetchProfile(true);
       notify({
@@ -549,7 +554,12 @@ function OrderCard({
   onReviewChange,
   onReviewSubmit,
 }) {
-  const canRequestCancel = ["pending", "confirmed"].includes(order.status);
+  const canRequestCancel = [
+    "payment_verification",
+    "pending",
+    "confirmed",
+    "preparing",
+  ].includes(order.status);
   const statusClass = statusStyles[order.status] || "bg-gray-100 text-gray-800 border-gray-200";
 
   return (
@@ -559,8 +569,18 @@ function OrderCard({
           <div className="flex flex-wrap items-center gap-3">
             <h3 className="text-xl font-black text-[#8b5e34]">Order #{order.id}</h3>
             <span className={`rounded-full border px-3 py-1 text-xs font-black capitalize ${statusClass}`}>
-              {order.status}
+              {order.status.replaceAll("_", " ")}
             </span>
+            {order.payment_status === "refund_pending" && (
+              <span className="rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-black text-red-800">
+                Refund pending
+              </span>
+            )}
+            {order.payment_status === "refunded" && (
+              <span className="rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
+                Refunded
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-[#6d4c2f]">
             {new Date(order.created_at).toLocaleString()}
@@ -591,12 +611,21 @@ function OrderCard({
             {order.status === "delivered" && (
               <div className="mt-3 rounded-xl bg-white p-3">
                 {item.review ? (
-                  <p className="text-sm font-bold text-[#6d4c2f]">
-                    Your rating: {"★".repeat(Number(item.review.rating))}
-                    {item.review.comment ? ` - ${item.review.comment}` : ""}
-                  </p>
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+                    <p className="text-sm font-bold text-[#6d4c2f]">
+                      Your rating: {Number(item.review.rating)} / 5
+                      {item.review.comment ? ` - ${item.review.comment}` : ""}
+                    </p>
+                    {item.review.image && (
+                      <img
+                        src={getMediaUrl(item.review.image)}
+                        alt={`Review for ${item.product}`}
+                        className="h-20 w-20 rounded-xl object-cover"
+                      />
+                    )}
+                  </div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-[120px_1fr_auto]">
+                  <div className="grid gap-3 md:grid-cols-[120px_1fr]">
                     <select
                       value={reviewForms[reviewKey]?.rating || 5}
                       onChange={(e) =>
@@ -618,10 +647,25 @@ function OrderCard({
                       className="rounded-xl border border-[#d8be96] px-3 py-2"
                       placeholder="Optional review"
                     />
+                    <label className="md:col-span-2">
+                      <span className="mb-2 block text-sm font-bold text-[#7a5331]">
+                        Add review photo
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) =>
+                          onReviewChange(reviewKey, {
+                            image: e.target.files?.[0] || null,
+                          })
+                        }
+                        className="block w-full rounded-xl border border-[#d8be96] bg-white px-3 py-2 text-sm"
+                      />
+                    </label>
                     <button
                       onClick={() => onReviewSubmit(order.id, item.product_id)}
                       disabled={reviewingKey === reviewKey}
-                      className="rounded-xl bg-[#8b5e34] px-4 py-2 font-bold text-white hover:bg-[#714a28] disabled:opacity-60"
+                      className="rounded-xl bg-[#8b5e34] px-4 py-2 font-bold text-white hover:bg-[#714a28] disabled:opacity-60 md:col-span-2"
                     >
                       {reviewingKey === reviewKey ? "Sending..." : "Review"}
                     </button>
@@ -644,6 +688,41 @@ function OrderCard({
       </details>
 
       <div className="mt-4 rounded-xl border border-[#ead7b8] bg-white p-4">
+        <p className="mb-3 font-black text-[#8b5e34]">Payment</p>
+        <div className="rounded-xl bg-[#fffaf2] p-4 text-sm text-[#6d4c2f]">
+          <p>
+            Method: <span className="font-black">{order.payment_method}</span>
+          </p>
+          {order.payment_method === "GCash" && (
+            <>
+              <p className="mt-1">
+                Status:{" "}
+                <span className="font-black capitalize">
+                  {(order.payment_status || "pending").replaceAll("_", " ")}
+                </span>
+              </p>
+              {order.payment_reference && (
+                <p className="mt-1">Reference: {order.payment_reference}</p>
+              )}
+              {order.payment_review_note && (
+                <p className="mt-1">Admin note: {order.payment_review_note}</p>
+              )}
+              {order.payment_status === "refund_pending" && (
+                <p className="mt-2 rounded-lg border border-red-200 bg-white px-3 py-2 font-bold text-red-800">
+                  Refund pending: your verified GCash payment is queued for admin refund.
+                </p>
+              )}
+              {order.payment_status === "refunded" && (
+                <p className="mt-2 rounded-lg border border-emerald-200 bg-white px-3 py-2 font-bold text-emerald-800">
+                  Refunded: your GCash refund has been marked as completed.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-[#ead7b8] bg-white p-4">
         <p className="mb-3 font-black text-[#8b5e34]">Cancellation</p>
         {order.cancellation_request ? (
           <div className="rounded-xl bg-[#fffaf2] p-4">
@@ -664,6 +743,16 @@ function OrderCard({
             {order.cancellation_request.admin_note && (
               <p className="mt-2 text-sm text-[#6d4c2f]">
                 Admin note: {order.cancellation_request.admin_note}
+              </p>
+            )}
+            {order.payment_method === "GCash" && order.payment_status === "refund_pending" && (
+              <p className="mt-2 text-sm font-bold text-red-800">
+                Since this order was paid through GCash, admin must refund it after approval.
+              </p>
+            )}
+            {order.payment_method === "GCash" && order.payment_status === "refunded" && (
+              <p className="mt-2 text-sm font-bold text-emerald-800">
+                This cancelled GCash order has been refunded.
               </p>
             )}
           </div>

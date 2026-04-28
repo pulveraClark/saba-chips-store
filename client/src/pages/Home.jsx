@@ -13,6 +13,14 @@ import { getTopSellingProducts } from "../assets/services/productService.js";
 import { getMediaUrl } from "../utils/media.js";
 
 const flavors = ["Cheese", "Sour Cream", "Barbecue", "Chili BBQ", "Sour Cheese", "Plain"];
+const categoryOptions = [
+  ["all", "All flavors"],
+  ["cheese", "Cheese"],
+  ["spicy", "Spicy"],
+  ["classic", "Classic"],
+  ["sweet", "Sweet"],
+  ["plain", "No sugar/plain"],
+];
 
 const iconPaths = {
   assistant: "M12 3v3m7 4v5a6 6 0 0 1-6 6h-2a6 6 0 0 1-6-6v-5a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3Zm-8 4h.01M15 14h.01M9 18h6",
@@ -51,6 +59,7 @@ function Home() {
   const [aiLoading, setAiLoading] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
   const [quantities, setQuantities] = useState({});
@@ -261,8 +270,14 @@ function Home() {
           Number(product.stock) > 0 &&
           Number(product.stock) <= 5) ||
         (stockFilter === "out" && Number(product.stock) <= 0);
+      const matchesCategory =
+        categoryFilter === "all" ||
+        product.category === categoryFilter ||
+        `${product.name || ""} ${product.description || ""}`
+          .toLowerCase()
+          .includes(categoryFilter);
 
-      return matchesSearch && matchesStock;
+      return matchesSearch && matchesStock && matchesCategory;
     })
     .sort((a, b) => {
       if (sortBy === "price-asc") return Number(a.price) - Number(b.price);
@@ -409,10 +424,6 @@ function Home() {
               <h2 className="text-4xl font-black text-[#5f432c] md:text-5xl">
                 Shop Saba Chips
               </h2>
-              <p className="mt-3 max-w-2xl text-[#6d4c2f]">
-                Browse current stock, order by pack, and save favorites for your
-                next merienda run.
-              </p>
             </div>
             {lowStockCount > 0 && (
               <div className="rounded-2xl border border-[#e8c475] bg-[#fff6da] px-5 py-3 text-sm font-bold text-[#8b5e34]">
@@ -421,7 +432,7 @@ function Home() {
             )}
           </div>
 
-          <div className="mb-8 grid gap-4 rounded-[1.5rem] border border-[#ead7b8] bg-white p-4 shadow-sm md:grid-cols-[1.4fr_0.8fr_0.8fr]">
+          <div className="mb-8 grid gap-4 rounded-[1.5rem] border border-[#ead7b8] bg-white p-4 shadow-sm md:grid-cols-[1.4fr_0.8fr_0.8fr_0.8fr]">
             <label className="relative block">
               <Icon
                 name="search"
@@ -435,6 +446,18 @@ function Home() {
                 className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] py-4 pl-12 pr-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
               />
             </label>
+
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-full rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4 text-[#6d4c2f] focus:outline-none focus:ring-2 focus:ring-[#d6b585]"
+            >
+              {categoryOptions.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
 
             <select
               value={stockFilter}
@@ -462,10 +485,14 @@ function Home() {
 
           <div className="mb-8 flex flex-wrap items-center justify-between gap-3 text-sm font-bold text-[#6d4c2f]">
             <p>{visibleProducts.length} product(s) shown</p>
-            {(searchTerm || stockFilter !== "all" || sortBy !== "newest") && (
+            {(searchTerm ||
+              categoryFilter !== "all" ||
+              stockFilter !== "all" ||
+              sortBy !== "newest") && (
               <button
                 onClick={() => {
                   setSearchTerm("");
+                  setCategoryFilter("all");
                   setStockFilter("all");
                   setSortBy("newest");
                 }}

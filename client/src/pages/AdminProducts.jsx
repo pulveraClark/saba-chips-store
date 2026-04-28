@@ -4,6 +4,7 @@ import {
   createProduct,
   updateProduct,
   deleteProduct,
+  restockProduct,
 } from "../assets/services/productService.js";
 import { getAdminReviews } from "../assets/services/reviewService.js";
 import { useNotification } from "../context/NotificationContext.jsx";
@@ -19,6 +20,7 @@ function AdminProducts() {
   const [page, setPage] = useState(1);
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [restockAmounts, setRestockAmounts] = useState({});
   const { notify } = useNotification();
 
   const PRODUCTS_PER_PAGE = 5;
@@ -30,6 +32,7 @@ function AdminProducts() {
     image: null,
     stock: "",
     existingImage: "",
+    category: "classic",
   });
 
   const [newProduct, setNewProduct] = useState({
@@ -38,6 +41,7 @@ function AdminProducts() {
     description: "",
     image: null,
     stock: "",
+    category: "classic",
   });
 
   // Products are loaded on mount; subsequent refreshes are manual after mutations.
@@ -71,6 +75,7 @@ function AdminProducts() {
       image: null,
       stock: product.stock || "",
       existingImage: product.image || "",
+      category: product.category || "classic",
     });
   };
 
@@ -81,6 +86,7 @@ function AdminProducts() {
     formData.append("price", editForm.price);
     formData.append("description", editForm.description);
     formData.append("stock", editForm.stock);
+    formData.append("category", editForm.category);
 
     if (editForm.image instanceof File) {
       formData.append("image", editForm.image);
@@ -103,6 +109,7 @@ function AdminProducts() {
         image: null,
         stock: "",
         existingImage: "",
+        category: "classic",
       });
       await refreshProducts();
     } catch (err) {
@@ -153,6 +160,7 @@ function AdminProducts() {
     formData.append("price", newProduct.price);
     formData.append("description", newProduct.description);
     formData.append("stock", newProduct.stock);
+    formData.append("category", newProduct.category);
 
     if (newProduct.image instanceof File) {
       formData.append("image", newProduct.image);
@@ -171,6 +179,7 @@ function AdminProducts() {
         description: "",
         image: null,
         stock: "",
+        category: "classic",
       });
       await refreshProducts();
     } catch (err) {
@@ -178,6 +187,35 @@ function AdminProducts() {
         type: "error",
         title: "Create Failed",
         message: err?.response?.data?.message || "Create failed",
+      });
+    }
+  };
+
+  const handleRestock = async (product) => {
+    const quantity = Number(restockAmounts[product.id] || 0);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      notify({
+        type: "warning",
+        title: "Restock quantity needed",
+        message: "Enter a positive whole number before restocking.",
+      });
+      return;
+    }
+
+    try {
+      await restockProduct(product.id, quantity);
+      setRestockAmounts((prev) => ({ ...prev, [product.id]: "" }));
+      await refreshProducts();
+      notify({
+        type: "success",
+        title: "Product restocked",
+        message: `${quantity} unit(s) were added to ${product.name}.`,
+      });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Restock failed",
+        message: err?.response?.data?.message || "Could not restock product.",
       });
     }
   };
@@ -287,6 +325,20 @@ function AdminProducts() {
               }
             />
 
+            <select
+              className="input-field"
+              value={newProduct.category}
+              onChange={(e) =>
+                setNewProduct({ ...newProduct, category: e.target.value })
+              }
+            >
+              <option value="classic">Classic</option>
+              <option value="cheese">Cheese</option>
+              <option value="spicy">Spicy</option>
+              <option value="sweet">Sweet</option>
+              <option value="plain">No sugar/plain</option>
+            </select>
+
             <textarea
               className="input-field md:col-span-2"
               placeholder="Description"
@@ -328,6 +380,7 @@ function AdminProducts() {
                   <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Name</th>
                   <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Price</th>
                   <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Stock</th>
+                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Category</th>
                   <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Description</th>
                   <th className="px-6 py-4 text-center text-[#8b5e34] font-bold">Actions</th>
                 </tr>
@@ -378,6 +431,28 @@ function AdminProducts() {
                         <div className="w-16 h-16 bg-[#f8f2e8] rounded-xl flex items-center justify-center text-[#8b5e34]">
                           📦
                         </div>
+                      )}
+                    </td>
+
+                    <td className="px-6 py-5">
+                      {editingId === product.id ? (
+                        <select
+                          className="input-field"
+                          value={editForm.category}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, category: e.target.value })
+                          }
+                        >
+                          <option value="classic">Classic</option>
+                          <option value="cheese">Cheese</option>
+                          <option value="spicy">Spicy</option>
+                          <option value="sweet">Sweet</option>
+                          <option value="plain">No sugar/plain</option>
+                        </select>
+                      ) : (
+                        <span className="rounded-full bg-[#fffaf2] px-3 py-1 text-sm font-bold capitalize text-[#8b5e34]">
+                          {product.category || "classic"}
+                        </span>
                       )}
                     </td>
 
@@ -482,6 +557,7 @@ function AdminProducts() {
                                 image: null,
                                 stock: "",
                                 existingImage: "",
+                                category: "classic",
                               });
                             }}
                             className="bg-gray-500 text-white px-4 py-2 rounded-xl font-semibold hover:bg-gray-600 transition"
@@ -491,6 +567,28 @@ function AdminProducts() {
                         </div>
                       ) : (
                         <div className="flex flex-col gap-2">
+                          <div className="grid grid-cols-[1fr_auto] gap-2">
+                            <input
+                              type="number"
+                              min="1"
+                              value={restockAmounts[product.id] || ""}
+                              onChange={(e) =>
+                                setRestockAmounts((prev) => ({
+                                  ...prev,
+                                  [product.id]: e.target.value,
+                                }))
+                              }
+                              className="rounded-xl border border-[#d8be96] px-3 py-2 text-sm"
+                              placeholder="Qty"
+                              aria-label={`Restock quantity for ${product.name}`}
+                            />
+                            <button
+                              onClick={() => handleRestock(product)}
+                              className="rounded-xl bg-green-600 px-3 py-2 text-sm font-bold text-white hover:bg-green-700"
+                            >
+                              Restock
+                            </button>
+                          </div>
                           <button
                             onClick={() => handleEdit(product)}
                             className="bg-[#8b5e34] text-white px-4 py-2 rounded-xl font-semibold hover:bg-[#714a28] transition"
@@ -566,7 +664,7 @@ function AdminProducts() {
                           {review.product_name}
                         </h3>
                         <span className="rounded-full bg-[#fffaf2] px-3 py-1 text-sm font-black text-[#8b5e34]">
-                          {"★".repeat(Number(review.rating))}
+                          {Number(review.rating)} / 5
                         </span>
                       </div>
                       <p className="mt-1 text-sm text-[#6d4c2f]">
@@ -587,6 +685,13 @@ function AdminProducts() {
                     <p className="mt-4 text-sm italic text-[#7a5331]">
                       No written comment.
                     </p>
+                  )}
+                  {review.image && (
+                    <img
+                      src={getMediaUrl(review.image)}
+                      alt={`Review for ${review.product_name}`}
+                      className="mt-4 h-32 w-32 rounded-2xl border border-[#ead7b8] object-cover"
+                    />
                   )}
                 </div>
               ))}

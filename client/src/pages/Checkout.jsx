@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { getCart, clearCart } from "../assets/services/cartService.js";
-import { checkout as placeOrder } from "../assets/services/orderService.js";
+import {
+  checkout as placeOrder,
+  getPaymentSettings,
+} from "../assets/services/orderService.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
@@ -43,6 +46,11 @@ function Checkout() {
     saveProfile: true,
     deliveryArea: "Liloan",
     notes: "",
+    paymentReference: "",
+    paymentProof: null,
+  });
+  const [paymentSettings, setPaymentSettings] = useState({
+    gcash: { accountName: "CL**K ED**L P.", number: "09274482261" },
   });
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
@@ -56,6 +64,7 @@ function Checkout() {
 
   useEffect(() => {
     fetchCart();
+    fetchPaymentSettings();
   }, []);
 
   useEffect(() => {
@@ -74,6 +83,15 @@ function Checkout() {
       setCart(cartItems || []);
     } catch (err) {
       console.error("Cart fetch failed:", err);
+    }
+  };
+
+  const fetchPaymentSettings = async () => {
+    try {
+      const settings = await getPaymentSettings();
+      setPaymentSettings(settings);
+    } catch (err) {
+      console.error("Payment settings fetch failed:", err);
     }
   };
 
@@ -104,10 +122,31 @@ function Checkout() {
       return;
     }
 
+    if (formData.paymentMethod === "GCash" && !formData.paymentProof) {
+      notify({
+        type: "warning",
+        title: "Payment Proof Required",
+        message: "Please upload your GCash receipt before placing the order.",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const result = await placeOrder(formData);
+      const checkoutData = new FormData();
+      checkoutData.append("address", formData.address);
+      checkoutData.append("phone", formData.phone);
+      checkoutData.append("paymentMethod", formData.paymentMethod);
+      checkoutData.append("saveProfile", String(formData.saveProfile));
+      checkoutData.append("deliveryArea", formData.deliveryArea);
+      checkoutData.append("notes", formData.notes);
+      checkoutData.append("paymentReference", formData.paymentReference);
+      if (formData.paymentProof instanceof File) {
+        checkoutData.append("paymentProof", formData.paymentProof);
+      }
+
+      const result = await placeOrder(checkoutData);
       setFinalTotal(result.total || total);
       setOrderId(result.orderId || "N/A");
 
@@ -166,8 +205,15 @@ function Checkout() {
             </div>
             <div className="flex justify-between text-[#6d4c2f]">
               <span>Payment</span>
-              <span className="font-black text-[#5f432c]">Cash on Delivery</span>
+              <span className="font-black text-[#5f432c]">
+                {formData.paymentMethod}
+              </span>
             </div>
+            {formData.paymentMethod === "GCash" && (
+              <div className="rounded-xl bg-[#fff6da] p-3 text-sm font-bold text-[#8b5e34]">
+                Your payment proof is pending admin verification.
+              </div>
+            )}
           </div>
 
           <p className="mx-auto mb-8 max-w-lg text-[#6d4c2f]">
@@ -370,6 +416,7 @@ function Checkout() {
                   Payment Method
                 </label>
 
+                <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
                   <input
                     type="radio"
@@ -393,6 +440,104 @@ function Checkout() {
                     </span>
                   </span>
                 </label>
+                <label className="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="GCash"
+                    checked={formData.paymentMethod === "GCash"}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        paymentMethod: e.target.value,
+                      })
+                    }
+                    className="h-5 w-5"
+                  />
+                  <span>
+                    <span className="block font-black text-[#8b5e34]">
+                      GCash
+                    </span>
+                    <span className="text-sm text-[#6d4c2f]">
+                      Upload receipt for admin verification.
+                    </span>
+                  </span>
+                </label>
+                </div>
+
+                {formData.paymentMethod === "GCash" && (
+                  <div className="mt-4 rounded-2xl border border-[#e8c475] bg-[#fff6da] p-5">
+                    <h3 className="font-black text-[#5f432c]">
+                      Send payment to this GCash account
+                    </h3>
+                    <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs font-bold text-[#9a7654]">
+                          Account name
+                        </p>
+                        <p className="mt-1 font-black text-[#5f432c]">
+                          {paymentSettings.gcash?.accountName}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs font-bold text-[#9a7654]">
+                          Number
+                        </p>
+                        <p className="mt-1 font-black text-[#5f432c]">
+                          {paymentSettings.gcash?.number}
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-white p-3">
+                        <p className="text-xs font-bold text-[#9a7654]">
+                          Amount
+                        </p>
+                        <p className="mt-1 font-black text-[#5f432c]">
+                          PHP {total.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="mt-3 text-sm text-[#6d4c2f]">
+                      After sending payment in GCash, upload the receipt image
+                      below. This keeps the process clear for both customer and
+                      admin.
+                    </p>
+
+                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                      <label>
+                        <span className="mb-2 block text-sm font-black text-[#6d4c2f]">
+                          Reference number
+                        </span>
+                        <input
+                          value={formData.paymentReference}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              paymentReference: e.target.value,
+                            })
+                          }
+                          className="input-field"
+                          placeholder="Optional GCash reference no."
+                        />
+                      </label>
+                      <label>
+                        <span className="mb-2 block text-sm font-black text-[#6d4c2f]">
+                          Receipt screenshot *
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              paymentProof: e.target.files?.[0] || null,
+                            })
+                          }
+                          className="block w-full rounded-xl border border-[#d8be96] bg-white px-4 py-3 text-sm text-[#6d4c2f]"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <label className="flex items-start gap-3 rounded-2xl border border-[#d8be96] bg-[#fffaf2] p-4">

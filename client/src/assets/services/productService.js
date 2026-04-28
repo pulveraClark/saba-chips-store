@@ -29,6 +29,11 @@ export const updateProduct = async (id, formData) => {
   return res.data;
 };
 
+export const restockProduct = async (id, quantity) => {
+  const res = await api.patch(`/api/products/${id}/restock`, { quantity });
+  return res.data;
+};
+
 // DELETE
 export const deleteProduct = async (id) => {
   const res = await api.delete(`/api/products/${id}`);
