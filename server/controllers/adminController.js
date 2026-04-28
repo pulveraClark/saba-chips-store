@@ -121,7 +121,10 @@ exports.getAdminSummary = (req, res) => {
             db.query(
               `SELECT 
                   SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pendingOrders,
+                  SUM(CASE WHEN status = 'payment_verification' THEN 1 ELSE 0 END) AS paymentVerificationOrders,
                   SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) AS confirmedOrders,
+                  SUM(CASE WHEN status = 'preparing' THEN 1 ELSE 0 END) AS preparingOrders,
+                  SUM(CASE WHEN status = 'out_for_delivery' THEN 1 ELSE 0 END) AS outForDeliveryOrders,
                   SUM(CASE WHEN status = 'shipped' THEN 1 ELSE 0 END) AS shippedOrders,
                   SUM(CASE WHEN status = 'delivered' THEN 1 ELSE 0 END) AS deliveredOrders,
                   SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) AS cancelledOrders
@@ -130,7 +133,10 @@ exports.getAdminSummary = (req, res) => {
                 if (err) return res.status(500).json({ message: "Failed to fetch summary" });
 
                 summary.pendingOrders = Number(statusResult[0].pendingOrders || 0);
+                summary.paymentVerificationOrders = Number(statusResult[0].paymentVerificationOrders || 0);
                 summary.confirmedOrders = Number(statusResult[0].confirmedOrders || 0);
+                summary.preparingOrders = Number(statusResult[0].preparingOrders || 0);
+                summary.outForDeliveryOrders = Number(statusResult[0].outForDeliveryOrders || 0);
                 summary.shippedOrders = Number(statusResult[0].shippedOrders || 0);
                 summary.deliveredOrders = Number(statusResult[0].deliveredOrders || 0);
                 summary.cancelledOrders = Number(statusResult[0].cancelledOrders || 0);

@@ -1,19 +1,30 @@
-const statusSteps = ["pending", "confirmed", "shipped", "delivered"];
+const statusSteps = ["pending", "confirmed", "preparing", "out_for_delivery", "delivered"];
 
 const labels = {
+  payment_verification: "Payment Check",
   pending: "Pending",
   confirmed: "Confirmed",
+  preparing: "Preparing",
+  out_for_delivery: "Out for Delivery",
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
 
 function OrderTimeline({ status, timeline = [] }) {
-  const activeIndex = status === "cancelled" ? -1 : statusSteps.indexOf(status);
+  const normalizedStatus = status === "shipped" ? "out_for_delivery" : status;
+  const activeIndex =
+    normalizedStatus === "cancelled" ? -1 : statusSteps.indexOf(normalizedStatus);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {status === "payment_verification" && (
+        <div className="rounded-2xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-800">
+          GCash payment proof is waiting for admin verification.
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         {statusSteps.map((step, index) => {
           const active = activeIndex >= index;
 

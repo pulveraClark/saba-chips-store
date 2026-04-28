@@ -8,6 +8,7 @@ import {
 } from "../assets/services/chatService.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
+import { getMediaUrl } from "../utils/media.js";
 
 function Messages() {
   const { user, isAdmin } = useAuth();
@@ -16,9 +17,11 @@ function Messages() {
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
+  const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const selectedConversation = useMemo(
     () => conversations.find((item) => Number(item.user_id) === Number(selectedUserId)),
@@ -96,15 +99,18 @@ function Messages() {
   const handleSend = async (e) => {
     e.preventDefault();
     const message = draft.trim();
-    if (!message) return;
+    if (!message && !imageFile) return;
 
     try {
       setSending(true);
       await sendMessage({
         receiverId: isAdmin ? selectedUserId : undefined,
         message,
+        image: imageFile,
       });
       setDraft("");
+      setImageFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       await fetchConversations();
       await fetchMessages(selectedUserId);
     } catch (err) {
@@ -235,7 +241,23 @@ function Messages() {
                             : "bg-white text-gray-900 border border-[#ead7b8]"
                         }`}
                       >
-                        <p className="whitespace-pre-wrap break-words">{item.message}</p>
+                        {item.image && (
+                          <a
+                            href={getMediaUrl(item.image)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mb-2 block overflow-hidden rounded-xl border border-white/30 bg-white/10"
+                          >
+                            <img
+                              src={getMediaUrl(item.image)}
+                              alt="Chat attachment"
+                              className="max-h-72 w-full object-cover"
+                            />
+                          </a>
+                        )}
+                        {item.message && (
+                          <p className="whitespace-pre-wrap break-words">{item.message}</p>
+                        )}
                         <p className={`mt-2 text-xs ${mine ? "text-[#fff1df]" : "text-[#7a5331]"}`}>
                           {formatMessageTime(item.created_at)}
                         </p>
@@ -248,7 +270,33 @@ function Messages() {
             </div>
 
             <form onSubmit={handleSend} className="p-4 border-t border-[#ead7b8] bg-white">
+              {imageFile && (
+                <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-[#ead7b8] bg-[#fffaf2] px-4 py-3 text-sm text-[#6d4c2f]">
+                  <span className="truncate font-bold">{imageFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = "";
+                    }}
+                    className="shrink-0 rounded-lg border border-[#d8be96] px-3 py-1 font-bold text-[#8b5e34]"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
               <div className="flex gap-3">
+                <label className="flex cursor-pointer items-center rounded-2xl border border-[#d8be96] px-4 py-3 font-black text-[#8b5e34] hover:bg-[#fffaf2]">
+                  Image
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={isAdmin && !selectedUserId}
+                    onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                  />
+                </label>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -260,7 +308,7 @@ function Messages() {
                 />
                 <button
                   type="submit"
-                  disabled={sending || !draft.trim() || (isAdmin && !selectedUserId)}
+                  disabled={sending || (!draft.trim() && !imageFile) || (isAdmin && !selectedUserId)}
                   className="rounded-2xl bg-[#8b5e34] px-6 py-3 text-white font-black hover:bg-[#714a28] disabled:opacity-50"
                 >
                   Send

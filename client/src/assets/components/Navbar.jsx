@@ -196,7 +196,7 @@ function Navbar() {
                 Saba Chips
               </span>
               <span className="block text-xs font-bold uppercase tracking-[0.18em] text-[#9a7654]">
-                Fresh Store
+                Fresh Chips
               </span>
             </span>
           </Link>

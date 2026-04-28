@@ -2,18 +2,24 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getAllOrders,
+  markRefunded,
+  reviewPayment,
   reviewCancellationRequest,
   updateOrderStatus,
 } from "../assets/services/orderService.js";
 import OrderTimeline from "../assets/components/OrderTimeline.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { sortByNewest } from "../utils/sortByNewest.js";
+import { getMediaUrl } from "../utils/media.js";
 
 const ORDERS_PER_PAGE = 5;
 
 const statusStyles = {
   pending: "bg-amber-100 text-amber-800 border-amber-200",
+  payment_verification: "bg-orange-100 text-orange-800 border-orange-200",
   confirmed: "bg-blue-100 text-blue-800 border-blue-200",
+  preparing: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  out_for_delivery: "bg-purple-100 text-purple-800 border-purple-200",
   shipped: "bg-violet-100 text-violet-800 border-violet-200",
   delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   cancelled: "bg-red-100 text-red-800 border-red-200",
@@ -25,7 +31,11 @@ function AdminOrders() {
   const [refreshing, setRefreshing] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [reviewingRequestId, setReviewingRequestId] = useState(null);
+  const [reviewingPaymentId, setReviewingPaymentId] = useState(null);
+  const [refundingOrderId, setRefundingOrderId] = useState(null);
   const [adminNotes, setAdminNotes] = useState({});
+  const [paymentNotes, setPaymentNotes] = useState({});
+  const [refundNotes, setRefundNotes] = useState({});
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("all");
   const [orderSearch, setOrderSearch] = useState("");
@@ -96,6 +106,48 @@ function AdminOrders() {
     }
   };
 
+  const handleReviewPayment = async (orderId, decision) => {
+    try {
+      setReviewingPaymentId(orderId);
+      await reviewPayment(orderId, decision, paymentNotes[orderId] || "");
+      await fetchOrders();
+      notify({
+        type: "success",
+        title: "Payment reviewed",
+        message: `GCash payment for Order #${orderId} was ${decision}.`,
+      });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Payment review failed",
+        message: err?.response?.data?.message || "Could not review payment.",
+      });
+    } finally {
+      setReviewingPaymentId(null);
+    }
+  };
+
+  const handleMarkRefunded = async (orderId) => {
+    try {
+      setRefundingOrderId(orderId);
+      await markRefunded(orderId, refundNotes[orderId] || "");
+      await fetchOrders();
+      notify({
+        type: "success",
+        title: "Refund completed",
+        message: `GCash refund for Order #${orderId} was marked as refunded.`,
+      });
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Refund update failed",
+        message: err?.response?.data?.message || "Could not mark refund as completed.",
+      });
+    } finally {
+      setRefundingOrderId(null);
+    }
+  };
+
   const sortedOrders = useMemo(() => sortByNewest(orders), [orders]);
   const visibleOrders = useMemo(() => {
     return sortedOrders.filter((order) => {
@@ -115,11 +167,8 @@ function AdminOrders() {
       return matchesSearch && matchesStatus;
     });
   }, [orderSearch, sortedOrders, statusFilter]);
-  const pendingCancellations = orders.filter(
-    (order) => order.cancellation_request?.status === "pending"
-  ).length;
   const activeOrders = orders.filter((order) =>
-    ["pending", "confirmed", "shipped"].includes(order.status)
+        ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery", "shipped"].includes(order.status)
   ).length;
   const totalPages = Math.max(1, Math.ceil(visibleOrders.length / ORDERS_PER_PAGE));
   const paginatedOrders = visibleOrders.slice(
@@ -158,10 +207,19 @@ function AdminOrders() {
             </button>
           </div>
 
-          <div className="grid gap-4 p-5 sm:grid-cols-3">
+          <div className="grid gap-4 p-5 sm:grid-cols-2 lg:grid-cols-4">
             <Metric label="Total Orders" value={orders.length} />
             <Metric label="Active Orders" value={activeOrders} />
-            <Metric label="Pending Cancellations" value={pendingCancellations} alert />
+            <Metric
+              label="GCash To Verify"
+              value={orders.filter((order) => order.payment_status === "pending_verification").length}
+              alert
+            />
+            <Metric
+              label="Refund Pending"
+              value={orders.filter((order) => order.payment_status === "refund_pending").length}
+              alert
+            />
           </div>
         </section>
 
@@ -194,8 +252,11 @@ function AdminOrders() {
               <div className="flex max-w-full gap-2 overflow-x-auto">
                 {[
                   ["all", "All"],
+                  ["payment_verification", "Payment Check"],
                   ["pending", "Pending"],
                   ["confirmed", "Confirmed"],
+                  ["preparing", "Preparing"],
+                  ["out_for_delivery", "Out for Delivery"],
                   ["shipped", "Shipped"],
                   ["delivered", "Delivered"],
                   ["cancelled", "Cancelled"],
@@ -236,7 +297,11 @@ function AdminOrders() {
                       order={order}
                       updating={updatingId === order.id}
                       reviewing={reviewingRequestId === order.cancellation_request?.id}
+                      reviewingPayment={reviewingPaymentId === order.id}
+                      refunding={refundingOrderId === order.id}
                       adminNote={adminNotes[order.cancellation_request?.id] || ""}
+                      paymentNote={paymentNotes[order.id] || ""}
+                      refundNote={refundNotes[order.id] || ""}
                       onStatusChange={(orderId, status) =>
                         setConfirmAction({
                           type: "status",
@@ -247,11 +312,30 @@ function AdminOrders() {
                       onAdminNoteChange={(requestId, value) =>
                         setAdminNotes((prev) => ({ ...prev, [requestId]: value }))
                       }
+                      onPaymentNoteChange={(orderId, value) =>
+                        setPaymentNotes((prev) => ({ ...prev, [orderId]: value }))
+                      }
+                      onRefundNoteChange={(orderId, value) =>
+                        setRefundNotes((prev) => ({ ...prev, [orderId]: value }))
+                      }
+                      onReviewPayment={(orderId, decision) =>
+                        setConfirmAction({
+                          type: "payment",
+                          orderId,
+                          decision,
+                        })
+                      }
                       onReviewCancellation={(requestId, decision) =>
                         setConfirmAction({
                           type: "cancellation",
                           requestId,
                           decision,
+                        })
+                      }
+                      onMarkRefunded={(orderId) =>
+                        setConfirmAction({
+                          type: "refund",
+                          orderId,
                         })
                       }
                     />
@@ -289,14 +373,30 @@ function AdminOrders() {
           title={
             confirmAction.type === "status"
               ? "Update order status?"
+              : confirmAction.type === "payment"
+              ? "Review GCash payment?"
+              : confirmAction.type === "refund"
+              ? "Mark refund completed?"
               : "Review cancellation request?"
           }
           message={
             confirmAction.type === "status"
               ? `Order #${confirmAction.orderId} will be changed to ${confirmAction.status}.`
+              : confirmAction.type === "payment"
+              ? `GCash payment for Order #${confirmAction.orderId} will be ${confirmAction.decision}.`
+              : confirmAction.type === "refund"
+              ? `Order #${confirmAction.orderId} will be marked as refunded.`
               : `This cancellation request will be ${confirmAction.decision}.`
           }
-          confirmLabel={confirmAction.type === "status" ? "Update" : "Confirm"}
+          confirmLabel={
+            confirmAction.type === "status"
+              ? "Update"
+              : confirmAction.type === "payment"
+              ? "Review Payment"
+              : confirmAction.type === "refund"
+              ? "Mark Refunded"
+              : "Confirm"
+          }
           danger={
             confirmAction.status === "cancelled" || confirmAction.decision === "rejected"
           }
@@ -304,6 +404,10 @@ function AdminOrders() {
           onConfirm={() => {
             if (confirmAction.type === "status") {
               void handleStatusChange(confirmAction.orderId, confirmAction.status);
+            } else if (confirmAction.type === "payment") {
+              void handleReviewPayment(confirmAction.orderId, confirmAction.decision);
+            } else if (confirmAction.type === "refund") {
+              void handleMarkRefunded(confirmAction.orderId);
             } else {
               void handleReviewCancellation(confirmAction.requestId, confirmAction.decision);
             }
@@ -330,10 +434,18 @@ function AdminOrderCard({
   order,
   updating,
   reviewing,
+  reviewingPayment,
+  refunding,
   adminNote,
+  paymentNote,
+  refundNote,
   onStatusChange,
   onAdminNoteChange,
+  onPaymentNoteChange,
+  onRefundNoteChange,
+  onReviewPayment,
   onReviewCancellation,
+  onMarkRefunded,
 }) {
   const statusClass = statusStyles[order.status] || "bg-gray-100 text-gray-800 border-gray-200";
   const cancellation = order.cancellation_request;
@@ -350,6 +462,21 @@ function AdminOrderCard({
             {cancellation?.status === "pending" && (
               <span className="rounded-full border border-amber-300 bg-amber-100 px-3 py-1 text-xs font-black text-amber-800">
                 Cancellation pending
+              </span>
+            )}
+            {order.payment_status === "pending_verification" && (
+              <span className="rounded-full border border-orange-300 bg-orange-100 px-3 py-1 text-xs font-black text-orange-800">
+                GCash proof to verify
+              </span>
+            )}
+            {order.payment_status === "refund_pending" && (
+              <span className="rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-black text-red-800">
+                GCash refund pending
+              </span>
+            )}
+            {order.payment_status === "refunded" && (
+              <span className="rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
+                GCash refunded
               </span>
             )}
           </div>
@@ -374,6 +501,8 @@ function AdminOrderCard({
           >
             <option value="pending">pending</option>
             <option value="confirmed">confirmed</option>
+            <option value="preparing">preparing</option>
+            <option value="out_for_delivery">out for delivery</option>
             <option value="shipped">shipped</option>
             <option value="delivered">delivered</option>
             <option value="cancelled">cancelled</option>
@@ -381,6 +510,107 @@ function AdminOrderCard({
           {updating && <p className="mt-2 text-sm font-bold text-[#7a5331]">Updating...</p>}
         </div>
       </div>
+
+      {order.payment_method === "GCash" && (
+        <div className="mt-5 rounded-xl border border-orange-200 bg-orange-50 p-4">
+          <div className="grid gap-4 lg:grid-cols-[1fr_auto]">
+            <div>
+              <p className="font-black text-orange-900">GCash Payment Proof</p>
+              <div className="mt-3 grid gap-2 text-sm text-[#6d4c2f] sm:grid-cols-3">
+                <p>
+                  Status:{" "}
+                  <span className="font-black capitalize text-[#8b5e34]">
+                    {(order.payment_status || "pending").replaceAll("_", " ")}
+                  </span>
+                </p>
+                <p>Reference: {order.payment_reference || "Not provided"}</p>
+                <p>
+                  Reviewed:{" "}
+                  {order.payment_reviewed_at
+                    ? new Date(order.payment_reviewed_at).toLocaleString()
+                    : "Not yet"}
+                </p>
+              </div>
+              {order.payment_review_note && (
+                <p className="mt-2 text-sm text-[#6d4c2f]">
+                  Note: {order.payment_review_note}
+                </p>
+              )}
+              {order.payment_status === "refund_pending" && (
+                <div className="mt-3 space-y-3 rounded-xl border border-red-200 bg-white p-4">
+                  <p className="text-sm font-bold text-red-800">
+                    This paid GCash order was cancelled. Process the customer refund using the
+                    GCash reference, then mark it refunded.
+                  </p>
+                  <textarea
+                    value={refundNote}
+                    onChange={(e) => onRefundNoteChange(order.id, e.target.value)}
+                    rows={2}
+                    className="w-full rounded-xl border border-red-200 bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-red-600"
+                    placeholder="Refund note or GCash refund reference"
+                  />
+                  <button
+                    onClick={() => onMarkRefunded(order.id)}
+                    disabled={refunding}
+                    className="rounded-xl bg-emerald-600 px-4 py-3 font-black text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    {refunding ? "Updating..." : "Mark Refunded"}
+                  </button>
+                </div>
+              )}
+              {order.payment_status === "refunded" && (
+                <p className="mt-3 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-bold text-emerald-800">
+                  Refund completed. The customer has been notified.
+                </p>
+              )}
+              {order.payment_proof_image ? (
+                <a
+                  href={getMediaUrl(order.payment_proof_image)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-block overflow-hidden rounded-2xl border border-orange-200 bg-white"
+                >
+                  <img
+                    src={getMediaUrl(order.payment_proof_image)}
+                    alt={`GCash proof for Order #${order.id}`}
+                    className="h-36 w-56 object-cover"
+                  />
+                </a>
+              ) : (
+                <p className="mt-3 text-sm text-[#6d4c2f]">No proof uploaded.</p>
+              )}
+            </div>
+
+            {order.payment_status === "pending_verification" && (
+              <div className="w-full space-y-3 lg:w-80">
+                <textarea
+                  value={paymentNote}
+                  onChange={(e) => onPaymentNoteChange(order.id, e.target.value)}
+                  rows={2}
+                  className="w-full rounded-xl border border-orange-300 bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-600"
+                  placeholder="Optional payment note"
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => onReviewPayment(order.id, "approved")}
+                    disabled={reviewingPayment}
+                    className="flex-1 rounded-xl bg-green-600 px-4 py-3 font-black text-white hover:bg-green-700 disabled:opacity-60"
+                  >
+                    Verify
+                  </button>
+                  <button
+                    onClick={() => onReviewPayment(order.id, "rejected")}
+                    disabled={reviewingPayment}
+                    className="flex-1 rounded-xl bg-red-600 px-4 py-3 font-black text-white hover:bg-red-700 disabled:opacity-60"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_1fr]">
         <div className="rounded-xl border border-[#ead7b8] bg-[#fffaf2] p-4">

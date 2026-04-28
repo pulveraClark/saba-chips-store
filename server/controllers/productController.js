@@ -55,7 +55,7 @@ exports.getTopSellingProducts = async (req, res) => {
 };
 
 exports.createProduct = (req, res) => {
-  const { name, price, description, stock } = req.body;
+  const { name, price, description, stock, category = "classic" } = req.body;
   const image = req.file ? `/uploads/${req.file.filename}` : null;
   const currentUser = req.session.user;
 
@@ -64,8 +64,8 @@ exports.createProduct = (req, res) => {
   }
 
   db.query(
-    "INSERT INTO products (name, price, description, image, stock) VALUES (?, ?, ?, ?, ?)",
-    [name, price, description, image, stock || 999],
+    "INSERT INTO products (name, price, description, image, stock, category) VALUES (?, ?, ?, ?, ?, ?)",
+    [name, price, description, image, stock || 999, category],
     (err, result) => {
       if (err) {
         console.error("Create product failed:", err);
@@ -93,6 +93,7 @@ exports.createProduct = (req, res) => {
           description,
           image,
           stock,
+          category,
         },
       });
     }
@@ -101,7 +102,14 @@ exports.createProduct = (req, res) => {
 
 exports.updateProduct = (req, res) => {
   const { id } = req.params;
-  const { name, price, description, stock, image: existingImage } = req.body;
+  const {
+    name,
+    price,
+    description,
+    stock,
+    category = "classic",
+    image: existingImage,
+  } = req.body;
   const currentUser = req.session.user;
 
   db.query("SELECT * FROM products WHERE id = ?", [id], (selectErr, rows) => {
@@ -122,8 +130,8 @@ exports.updateProduct = (req, res) => {
     }
 
     db.query(
-      "UPDATE products SET name=?, price=?, description=?, image=?, stock=? WHERE id=?",
-      [name, price, description, imagePath, stock, id],
+      "UPDATE products SET name=?, price=?, description=?, image=?, stock=?, category=? WHERE id=?",
+      [name, price, description, imagePath, stock, category, id],
       (err, result) => {
         if (err) {
           console.error("Update product failed:", err);
@@ -170,6 +178,7 @@ exports.updateProduct = (req, res) => {
             description,
             image: imagePath,
             stock,
+            category,
           },
         });
       }
@@ -224,4 +233,43 @@ exports.deleteProduct = (req, res) => {
       res.json({ message: "Product deleted successfully" });
     });
   });
+};
+
+exports.restockProduct = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const quantity = Number(req.body.quantity);
+    const currentUser = req.session.user;
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return res.status(400).json({ message: "Restock quantity must be a positive number" });
+    }
+
+    const result = await queryAsync(
+      "UPDATE products SET stock = stock + ? WHERE id = ?",
+      [quantity, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const products = await queryAsync("SELECT name, stock FROM products WHERE id = ?", [id]);
+
+    logActivity({
+      userId: currentUser?.id,
+      userName: currentUser?.name,
+      userEmail: currentUser?.email,
+      action: "Product restocked",
+      details: `${currentUser?.name || "Admin"} added ${quantity} stock to ${products[0]?.name || `Product #${id}`}`,
+    });
+
+    res.json({
+      message: "Product restocked",
+      product: products[0],
+    });
+  } catch (err) {
+    console.error("Restock product failed:", err);
+    res.status(500).json({ message: "Restock failed" });
+  }
 };

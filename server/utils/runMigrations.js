@@ -1,9 +1,17 @@
 const realtimeMigration = require("../migrations/001_realtime_and_profile_tables");
 const userRolesMigration = require("../migrations/002_user_roles");
 const wishlistReviewsMigration = require("../migrations/003_wishlist_reviews");
+const realStoreWorkflowsMigration = require("../migrations/004_real_store_workflows");
+const chatImagesMigration = require("../migrations/005_chat_images");
 const queryAsync = require("./queryAsync");
 
-const migrations = [realtimeMigration, userRolesMigration, wishlistReviewsMigration];
+const migrations = [
+  realtimeMigration,
+  userRolesMigration,
+  wishlistReviewsMigration,
+  realStoreWorkflowsMigration,
+  chatImagesMigration,
+];
 
 const runMigrations = async () => {
   await queryAsync(`

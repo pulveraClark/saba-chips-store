@@ -12,7 +12,7 @@ exports.getConversations = async (req, res) => {
       const admin = await getAdminUser();
       const latestRows = admin
         ? await queryAsync(
-            `SELECT message, created_at
+            `SELECT message, image, created_at
              FROM chat_messages
              WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
              ORDER BY created_at DESC, id DESC
@@ -36,7 +36,7 @@ exports.getConversations = async (req, res) => {
                 user_id: admin.id,
                 name: "Saba Chips Admin",
                 email: admin.email,
-                last_message: latestRows[0]?.message || null,
+                last_message: latestRows[0]?.message || (latestRows[0]?.image ? "Photo" : null),
                 last_message_at: latestRows[0]?.created_at || null,
                 unread_count: Number(unreadRows[0]?.unread_count || 0),
               },
@@ -50,7 +50,7 @@ exports.getConversations = async (req, res) => {
          u.id AS user_id,
          u.name,
          u.email,
-         latest.message AS last_message,
+         COALESCE(NULLIF(latest.message, ''), CASE WHEN latest.image IS NOT NULL THEN 'Photo' END) AS last_message,
          latest.created_at AS last_message_at,
          COALESCE(unread.unread_count, 0) AS unread_count
        FROM users u
@@ -92,7 +92,7 @@ exports.getMessages = async (req, res) => {
     }
 
     const messages = await queryAsync(
-      `SELECT id, sender_id, receiver_id, message, is_read, created_at
+      `SELECT id, sender_id, receiver_id, message, image, is_read, created_at
        FROM chat_messages
        WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
        ORDER BY created_at ASC, id ASC`,
@@ -114,10 +114,11 @@ exports.getMessages = async (req, res) => {
 exports.sendMessage = async (req, res) => {
   try {
     const senderId = req.session.userId;
-    const message = req.body.message?.trim();
+    const message = req.body.message?.trim() || "";
+    const image = req.file ? `/uploads/${req.file.filename}` : null;
 
-    if (!message) {
-      return res.status(400).json({ message: "Message is required" });
+    if (!message && !image) {
+      return res.status(400).json({ message: "Message or image is required" });
     }
 
     const admin = await getAdminUser();
@@ -128,8 +129,8 @@ exports.sendMessage = async (req, res) => {
     }
 
     const result = await queryAsync(
-      "INSERT INTO chat_messages (sender_id, receiver_id, message) VALUES (?, ?, ?)",
-      [senderId, receiverId, message]
+      "INSERT INTO chat_messages (sender_id, receiver_id, message, image) VALUES (?, ?, ?, ?)",
+      [senderId, receiverId, message, image]
     );
 
     broadcastChatUpdate({
