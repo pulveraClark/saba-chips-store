@@ -137,10 +137,6 @@ function Cart() {
             Order Review
           </p>
           <h1 className="mb-3 text-4xl font-black md:text-5xl">Your Cart</h1>
-          <p className="max-w-2xl text-[#fff1df]">
-            Check quantities, remove items you no longer want, then continue to
-            delivery and payment details.
-          </p>
         </div>
 
         {cart.length === 0 ? (

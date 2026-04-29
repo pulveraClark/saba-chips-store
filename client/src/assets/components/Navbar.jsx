@@ -331,12 +331,10 @@ function Navbar() {
                   aria-expanded={dropdownOpen}
                 >
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f1dfc2] text-xs font-black uppercase text-[#8b5e34]">
-                    {isAdmin ? "A" : user.name?.charAt(0) || "P"}
+                    {user.name?.charAt(0) || (isAdmin ? "A" : "P")}
                   </span>
                   <span className="max-w-28 truncate">
-                    {isAdmin
-                      ? "Admin"
-                      : user.name?.split(" ")[0] || "Profile"}
+                    {user.name || (isAdmin ? "Admin" : "Profile")}
                   </span>
                   <Icon
                     name="chevron"
@@ -366,6 +364,15 @@ function Navbar() {
                         >
                           <Icon name="reports" className="h-5 w-5 text-[#8b5e34]" />
                           Reports & Insights
+                        </Link>
+
+                        <Link
+                          to="/admin-transactions"
+                          className="flex items-center gap-3 rounded-xl px-4 py-3 font-semibold text-[#5f432c] transition hover:bg-[#fff7eb]"
+                          onClick={closeMenus}
+                        >
+                          <Icon name="orders" className="h-5 w-5 text-[#8b5e34]" />
+                          Transaction History
                         </Link>
 
                         <Link

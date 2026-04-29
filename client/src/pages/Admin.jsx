@@ -132,7 +132,13 @@ function Admin() {
       to: "/admin-reports",
       icon: "chart",
       title: "Review Reports",
-      text: "Check sales, transactions, and top product performance.",
+      text: "Check sales and advanced analytics.",
+    },
+    {
+      to: "/admin-transactions",
+      icon: "orders",
+      title: "Transaction History",
+      text: "Browse all transactions in a dedicated admin page.",
     },
     {
       to: "/admin-users",
@@ -166,12 +172,12 @@ function Admin() {
             <p className="mb-3 text-sm font-black uppercase tracking-[0.25em] text-[#ffe2ad]">
               Store Operations
             </p>
-            <h1 className="mb-3 text-4xl font-black md:text-5xl">
+            <h1 className="mb-4 text-4xl font-black leading-tight tracking-tight text-white md:text-5xl">
               Welcome back, {adminName}
+              
             </h1>
-            <p className="max-w-2xl text-[#fff1df]">
-              Start with orders, stock, and sales. These are the daily signals
-              that keep the store ready for real customers.
+            <p className="max-w-3xl text-base text-[#f3dfb7]">
+              Keep your store running smoothly with quick access to orders, stock alerts, reports, and customer management.
             </p>
           </div>
 
