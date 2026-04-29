@@ -402,7 +402,7 @@ function Home() {
                 Storefront
               </p>
               <h2 className="text-4xl font-black text-[#5f432c] md:text-5xl">
-                Shop Saba Chips
+                Products
               </h2>
             </div>
             {lowStockCount > 0 && (

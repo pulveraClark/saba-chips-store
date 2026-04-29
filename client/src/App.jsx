@@ -17,6 +17,7 @@ import AdminOrders from "./pages/AdminOrders.jsx";
 import ForgotPassword from "./pages/ForgotPassword.jsx";
 import ResetPassword from "./pages/ResetPassword.jsx";
 import AdminReports from "./pages/AdminReports.jsx";
+import AdminTransactions from "./pages/AdminTransactions.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
 import Messages from "./pages/Messages.jsx";
 
@@ -127,6 +128,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminReports />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin-transactions"
+            element={
+              <AdminRoute>
+                <AdminTransactions />
               </AdminRoute>
             }
           />

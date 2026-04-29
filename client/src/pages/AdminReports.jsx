@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   getAdminSummary,
-  getTransactionHistory,
   getSalesChartData,
   getOrderStatusChartData,
   getTopProductsChartData,
@@ -76,43 +75,28 @@ function AdminReports() {
     stockLevels: [],
   });
 
-  const [transactions, setTransactions] = useState([]);
   const [salesChart, setSalesChart] = useState([]);
   const [orderStatusChart, setOrderStatusChart] = useState([]);
   const [topProductsChart, setTopProductsChart] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [transactionsRefreshing, setTransactionsRefreshing] = useState(false);
-  const [transactionsPage, setTransactionsPage] = useState(1);
-
-  const TRANSACTIONS_PER_PAGE = 5;
 
   useEffect(() => {
     fetchReports();
   }, []);
 
-  const fetchReports = async (showRefresh = false) => {
+  const fetchReports = async () => {
     try {
-      if (showRefresh) setTransactionsRefreshing(true);
-
-      const [
-        summaryData,
-        advancedData,
-        transactionData,
-        salesData,
-        statusData,
-        topProductsData,
-      ] = await Promise.all([
-        getAdminSummary(),
-        getAdvancedInsights(),
-        getTransactionHistory(),
-        getSalesChartData(),
-        getOrderStatusChartData(),
-        getTopProductsChartData(),
-      ]);
+      const [summaryData, advancedData, salesData, statusData, topProductsData] =
+        await Promise.all([
+          getAdminSummary(),
+          getAdvancedInsights(),
+          getSalesChartData(),
+          getOrderStatusChartData(),
+          getTopProductsChartData(),
+        ]);
 
       setSummary(summaryData || {});
       setAdvancedInsights(advancedData || {});
-      setTransactions(transactionData || []);
       setSalesChart(salesData || []);
       setOrderStatusChart(statusData || []);
       setTopProductsChart(topProductsData || []);
@@ -120,7 +104,6 @@ function AdminReports() {
       console.error("Failed to fetch reports:", err);
     } finally {
       setLoading(false);
-      setTransactionsRefreshing(false);
     }
   };
 
@@ -160,7 +143,6 @@ function AdminReports() {
     ],
   };
 
-  const sortedTransactions = sortByNewest(transactions);
   const summaryRows = [
     { metric: "Total Users", value: summary.totalUsers || 0 },
     { metric: "Total Products", value: summary.totalProducts || 0 },
@@ -190,21 +172,6 @@ function AdminReports() {
     { metric: "Weekly Units Sold", value: advancedInsights.weeklyUnitsSold || 0 },
     { metric: "Monthly Units Sold", value: advancedInsights.monthlyUnitsSold || 0 },
   ];
-
-  const transactionRows = sortedTransactions.map((transaction) => ({
-    orderId: transaction.id,
-    customerName: transaction.customer_name,
-    customerEmail: transaction.customer_email,
-    total: Number(transaction.total || 0).toFixed(2),
-    status: transaction.status,
-    paymentMethod: transaction.payment_method,
-    address: transaction.address,
-    phone: transaction.phone,
-    createdAt: new Date(transaction.created_at).toLocaleString(),
-    items: (transaction.items || [])
-      .map((item) => `${item.product_name} x${item.quantity}`)
-      .join(", "),
-  }));
 
   const orderStatusCards = [
     {
@@ -249,19 +216,6 @@ function AdminReports() {
     { key: "value", label: "Value" },
   ];
 
-  const transactionColumns = [
-    { key: "orderId", label: "Order ID" },
-    { key: "customerName", label: "Customer Name" },
-    { key: "customerEmail", label: "Customer Email" },
-    { key: "total", label: "Total" },
-    { key: "status", label: "Status" },
-    { key: "paymentMethod", label: "Payment Method" },
-    { key: "address", label: "Address" },
-    { key: "phone", label: "Phone" },
-    { key: "createdAt", label: "Created At" },
-    { key: "items", label: "Items" },
-  ];
-
   const handleExportSummaryCsv = () => {
     exportToCsv("summary-report.csv", summaryColumns, summaryRows);
   };
@@ -270,43 +224,15 @@ function AdminReports() {
     exportToExcel("summary-report.xls", "Summary Report", summaryColumns, summaryRows);
   };
 
-  const handleExportTransactionsCsv = () => {
-    exportToCsv("transaction-history.csv", transactionColumns, transactionRows);
-  };
-
-  const handleExportTransactionsExcel = () => {
-    exportToExcel(
-      "transaction-history.xls",
-      "Transaction History",
-      transactionColumns,
-      transactionRows
-    );
-  };
-
   const handleExportReportsPdf = () => {
-    exportToPdfPrint("Saba Chips Reports", [
+    exportToPdfPrint("Saba Chips Summary Report", [
       {
         heading: "Summary Report",
         columns: summaryColumns,
         rows: summaryRows,
       },
-      {
-        heading: "Transaction History",
-        columns: transactionColumns,
-        rows: transactionRows,
-      },
     ]);
   };
-
-  const transactionsTotalPages = Math.max(
-    1,
-    Math.ceil(sortedTransactions.length / TRANSACTIONS_PER_PAGE)
-  );
-
-  const paginatedTransactions = sortedTransactions.slice(
-    (transactionsPage - 1) * TRANSACTIONS_PER_PAGE,
-    transactionsPage * TRANSACTIONS_PER_PAGE
-  );
 
   if (loading) {
     return (
@@ -332,7 +258,7 @@ function AdminReports() {
             Reports & Insights
           </h1>
           <p className="text-[#fff1df] text-lg max-w-2xl">
-            Summary reports, transaction history, and analytics charts for your
+            Summary reports and analytics charts for your
             store.
           </p>
         </div>
@@ -361,27 +287,17 @@ function AdminReports() {
                   Summary Excel
                 </button>
                 <button
-                  onClick={handleExportTransactionsCsv}
-                  className="min-h-12 rounded-xl bg-[#8b5e34] px-4 py-3 font-bold text-white hover:bg-[#714a28]"
-                >
-                  Transactions CSV
-                </button>
-                <button
-                  onClick={handleExportTransactionsExcel}
-                  className="min-h-12 rounded-xl bg-[#b8834d] px-4 py-3 font-bold text-white hover:bg-[#9e6d3b]"
-                >
-                  Transactions Excel
-                </button>
-                <button
                   onClick={handleExportReportsPdf}
                   className="min-h-12 rounded-xl bg-[#2f4858] px-4 py-3 font-bold text-white hover:bg-[#243946] sm:col-span-2 xl:col-span-1"
                 >
-                  Export PDF
+                  Export Summary PDF
                 </button>
               </div>
             </details>
           </div>
         </div>
+
+        
 
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
           <div className="bg-white rounded-3xl p-6 shadow-lg border border-[#ead7b8]">
@@ -624,154 +540,6 @@ function AdminReports() {
           </div>
         </div>
 
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-[#ead7b8]">
-          <div className="bg-gradient-to-r from-[#8b5e34] to-[#b8834d] p-6 text-white">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="text-3xl font-black">Transaction History</h2>
-              <button
-                onClick={() => fetchReports(true)}
-                disabled={transactionsRefreshing}
-                className="px-4 py-3 rounded-2xl bg-white text-[#8b5e34] font-bold hover:bg-[#f8f2e8] disabled:opacity-60"
-              >
-                {transactionsRefreshing ? "↻..." : "↻"}
-              </button>
-            </div>
-          </div>
-
-          {transactions.length === 0 ? (
-            <div className="text-center py-16 text-[#6d4c2f]">
-              No transactions found.
-            </div>
-          ) : (
-            <>
-              <div className="space-y-6 p-6">
-                {paginatedTransactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="bg-[#fffaf2] border border-[#ead7b8] rounded-3xl p-6 shadow-sm"
-                  >
-                    <div className="grid md:grid-cols-2 xl:grid-cols-5 gap-4 mb-5">
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-1">Order ID</p>
-                        <p className="font-black text-[#8b5e34] text-xl">
-                          #{transaction.id}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-1">Customer</p>
-                        <p className="font-semibold text-gray-900">
-                          {transaction.customer_name}
-                        </p>
-                        <p className="text-sm text-[#6d4c2f]">
-                          {transaction.customer_email}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-1">Total</p>
-                        <p className="font-black text-[#8b5e34] text-xl">
-                          ₱{Number(transaction.total).toLocaleString()}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-1">Payment</p>
-                        <p className="text-[#6d4c2f]">
-                          {transaction.payment_method}
-                        </p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-1">Date</p>
-                        <p className="text-[#6d4c2f]">
-                          {new Date(transaction.created_at).toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-4 mb-5">
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-2">Ordered Items</p>
-                        <div className="flex flex-wrap gap-2">
-                          {transaction.items?.map((item, index) => (
-                            <span
-                              key={index}
-                              className="inline-flex items-center px-3 py-2 rounded-full bg-[#f5e4c9] text-[#8b5e34] text-sm font-semibold"
-                            >
-                              {item.product_name} ×{item.quantity}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col md:items-end">
-                        <p className="text-sm text-[#7a5331] mb-2">Status</p>
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-semibold capitalize w-fit ${
-                            transaction.status === "pending"
-                              ? "bg-yellow-100 text-yellow-700"
-                              : transaction.status === "confirmed"
-                              ? "bg-blue-100 text-blue-700"
-                              : transaction.status === "delivered"
-                              ? "bg-green-100 text-green-700"
-                              : transaction.status === "cancelled"
-                              ? "bg-red-100 text-red-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {transaction.status}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="grid md:grid-cols-2 gap-4 pt-4 border-t border-[#ead7b8]">
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-1">Address</p>
-                        <p className="text-[#6d4c2f]">{transaction.address}</p>
-                      </div>
-
-                      <div>
-                        <p className="text-sm text-[#7a5331] mb-1">Phone</p>
-                        <p className="text-[#6d4c2f]">{transaction.phone}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 border-t border-[#f1e3ca] bg-[#fffaf2]">
-                <p className="text-[#6d4c2f] font-medium">
-                  Page {transactionsPage} of {transactionsTotalPages} • {transactions.length} total transactions
-                </p>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() =>
-                      setTransactionsPage((prev) => Math.max(prev - 1, 1))
-                    }
-                    disabled={transactionsPage === 1}
-                    className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Prev
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      setTransactionsPage((prev) =>
-                        prev < transactionsTotalPages ? prev + 1 : prev
-                      )
-                    }
-                    disabled={transactionsPage >= transactionsTotalPages}
-                    className="px-5 py-2 rounded-xl bg-[#8b5e34] text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
       </div>
     </div>
   );
