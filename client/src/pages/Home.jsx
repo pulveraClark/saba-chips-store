@@ -312,13 +312,12 @@ function Home() {
               Freshly cooked in Catarman, Liloan
             </div>
 
-            <h1 className="mb-6 text-5xl font-black leading-tight text-[#5f432c] md:text-7xl">
-              Real Cebu comfort snack, packed fresh for your day.
+            <h1 className="mb-6 text-5xl font-black leading-tight text-[#5f432c] md:text-5xl">
+             Where tradition meets a flavor-forward experience.
             </h1>
 
             <p className="mb-8 max-w-2xl text-lg leading-relaxed text-[#6d4c2f] md:text-xl">
-              Crispy Saba Chips in classic and flavored packs, made for quick
-              cravings, pasalubong, office snacks, and family merienda.
+             Crispy banana chips crafted for elevated cravings, everyday indulgence, and memorable snack moments worth sharing.
             </p>
 
             <div className="mb-8 grid gap-3 sm:grid-cols-3">
@@ -394,25 +393,6 @@ function Home() {
         </div>
       </section>
 
-      <section className="border-y border-[#ead7b8] bg-white">
-        <div className="mx-auto grid max-w-6xl gap-4 px-6 py-8 md:grid-cols-3">
-          {[
-            ["Choose your flavor", "Pick from cheese, sour cream, barbecue, chili BBQ, sour cheese, or plain."],
-            ["Checkout securely", "Add delivery details and choose Cash on Delivery."],
-            ["Track your order", "Get order updates from pending to delivered."],
-          ].map(([title, text]) => (
-            <div key={title} className="flex gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f1dfc2] text-[#8b5e34]">
-                <Icon name="check" className="h-5 w-5" />
-              </div>
-              <div>
-                <h2 className="font-black text-[#5f432c]">{title}</h2>
-                <p className="mt-1 text-sm leading-relaxed text-[#6d4c2f]">{text}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       <section id="products" className="bg-[#fffaf2] py-16">
         <div className="mx-auto max-w-6xl px-6">
@@ -691,27 +671,23 @@ function Home() {
         </div>
       </section>
 
-      <section className="bg-white py-14">
-        <div className="mx-auto grid max-w-6xl gap-6 px-6 lg:grid-cols-[0.8fr_1.2fr]">
-          <div>
-            <p className="mb-2 text-sm font-black uppercase tracking-[0.2em] text-[#9a7654]">
-              Delivery coverage
-            </p>
-            <h2 className="text-3xl font-black text-[#5f432c]">
-              Free delivery in nearby areas.
-            </h2>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            {["Consolacion", "Liloan", "Compostela"].map((area) => (
-              <div
-                key={area}
-                className="rounded-2xl border border-[#ead7b8] bg-[#fffaf2] p-5"
-              >
-                <p className="font-black text-[#8b5e34]">{area}</p>
-                <p className="mt-1 text-sm text-[#6d4c2f]">Free local delivery</p>
+      <section className="border-y border-[#ead7b8] bg-white">
+        <div className="mx-auto grid max-w-6xl gap-4 px-6 py-8 md:grid-cols-3">
+          {[
+            ["Choose your flavor", "Pick from cheese, sour cream, barbecue, chili BBQ, sour cheese, or plain."],
+            ["Checkout securely", "Add delivery details and choose Cash on Delivery."],
+            ["Track your order", "Get order updates from pending to delivered."],
+          ].map(([title, text]) => (
+            <div key={title} className="flex gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f1dfc2] text-[#8b5e34]">
+                <Icon name="check" className="h-5 w-5" />
               </div>
-            ))}
-          </div>
+              <div>
+                <h2 className="font-black text-[#5f432c]">{title}</h2>
+                <p className="mt-1 text-sm leading-relaxed text-[#6d4c2f]">{text}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 

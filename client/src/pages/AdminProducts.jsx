@@ -372,17 +372,17 @@ function AdminProducts() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[1080px] table-fixed">
               <thead className="bg-[#fff7eb]">
                 <tr>
-                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">ID</th>
-                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Image</th>
-                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Name</th>
-                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Price</th>
-                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Stock</th>
-                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Category</th>
-                  <th className="px-6 py-4 text-left text-[#8b5e34] font-bold">Description</th>
-                  <th className="px-6 py-4 text-center text-[#8b5e34] font-bold">Actions</th>
+                  <th className="w-16 px-4 py-4 text-left font-bold text-[#8b5e34]">ID</th>
+                  <th className="w-36 px-4 py-4 text-left font-bold text-[#8b5e34]">Image</th>
+                  <th className="w-44 px-4 py-4 text-left font-bold text-[#8b5e34]">Name</th>
+                  <th className="w-28 px-4 py-4 text-left font-bold text-[#8b5e34]">Price</th>
+                  <th className="w-28 px-4 py-4 text-left font-bold text-[#8b5e34]">Stock</th>
+                  <th className="w-32 px-4 py-4 text-left font-bold text-[#8b5e34]">Category</th>
+                  <th className="w-56 px-4 py-4 text-left font-bold text-[#8b5e34]">Description</th>
+                  <th className="w-48 px-4 py-4 text-center font-bold text-[#8b5e34]">Actions</th>
                 </tr>
               </thead>
 
@@ -398,9 +398,9 @@ function AdminProducts() {
                         : "hover:bg-[#fffaf2]"
                     }`}
                   >
-                    <td className="px-6 py-5">{product.id}</td>
+                    <td className="px-4 py-5 font-semibold text-[#6d4c2f]">{product.id}</td>
 
-                    <td className="px-6 py-5">
+                    <td className="px-4 py-5">
                       {editingId === product.id ? (
                         <div className="space-y-2">
                           {editForm.existingImage && (
@@ -413,6 +413,7 @@ function AdminProducts() {
                           <input
                             type="file"
                             accept="image/*"
+                            className="w-full text-xs text-[#6d4c2f]"
                             onChange={(e) =>
                               setEditForm({
                                 ...editForm,
@@ -434,10 +435,72 @@ function AdminProducts() {
                       )}
                     </td>
 
-                    <td className="px-6 py-5">
+                    <td className="px-4 py-5">
+                      {editingId === product.id ? (
+                        <input
+                          className="input-field w-full"
+                          value={editForm.name}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, name: e.target.value })
+                          }
+                        />
+                      ) : (
+                        <span className="break-words font-semibold text-gray-900">
+                          {product.name}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-5">
+                      {editingId === product.id ? (
+                        <input
+                          className="input-field w-full"
+                          type="number"
+                          value={editForm.price}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, price: e.target.value })
+                          }
+                        />
+                      ) : (
+                        <span className="font-semibold text-[#8b5e34]">
+                          PHP {product.price}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-5">
+                      {editingId === product.id ? (
+                        <input
+                          className="input-field w-full"
+                          type="number"
+                          value={editForm.stock}
+                          onChange={(e) =>
+                            setEditForm({ ...editForm, stock: e.target.value })
+                          }
+                        />
+                      ) : (
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-sm font-semibold ${
+                            product.stock <= 0
+                              ? "bg-red-100 text-red-700"
+                              : product.stock <= 5
+                              ? "bg-yellow-100 text-yellow-700"
+                              : "bg-green-100 text-green-700"
+                          }`}
+                        >
+                          {product.stock <= 0
+                            ? "Out"
+                            : product.stock <= 5
+                            ? `Low: ${product.stock}`
+                            : product.stock}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-5">
                       {editingId === product.id ? (
                         <select
-                          className="input-field"
+                          className="input-field w-full"
                           value={editForm.category}
                           onChange={(e) =>
                             setEditForm({ ...editForm, category: e.target.value })
@@ -450,78 +513,16 @@ function AdminProducts() {
                           <option value="plain">No sugar/plain</option>
                         </select>
                       ) : (
-                        <span className="rounded-full bg-[#fffaf2] px-3 py-1 text-sm font-bold capitalize text-[#8b5e34]">
+                        <span className="inline-flex rounded-full bg-[#fffaf2] px-3 py-1 text-sm font-bold capitalize text-[#8b5e34]">
                           {product.category || "classic"}
                         </span>
                       )}
                     </td>
 
-                    <td className="px-6 py-5">
-                      {editingId === product.id ? (
-                        <input
-                          className="input-field"
-                          value={editForm.name}
-                          onChange={(e) =>
-                            setEditForm({ ...editForm, name: e.target.value })
-                          }
-                        />
-                      ) : (
-                        <span className="font-semibold text-gray-900">
-                          {product.name}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-5">
-                      {editingId === product.id ? (
-                        <input
-                          className="input-field"
-                          type="number"
-                          value={editForm.price}
-                          onChange={(e) =>
-                            setEditForm({ ...editForm, price: e.target.value })
-                          }
-                        />
-                      ) : (
-                        <span className="font-semibold text-[#8b5e34]">
-                          ₱{product.price}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-5">
-                      {editingId === product.id ? (
-                        <input
-                          className="input-field"
-                          type="number"
-                          value={editForm.stock}
-                          onChange={(e) =>
-                            setEditForm({ ...editForm, stock: e.target.value })
-                          }
-                        />
-                      ) : (
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            product.stock <= 0
-                              ? "bg-red-100 text-red-700"
-                              : product.stock <= 5
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-green-100 text-green-700"
-                          }`}
-                        >
-                          {product.stock <= 0
-                            ? "Out of stock"
-                            : product.stock <= 5
-                            ? `Low: ${product.stock}`
-                            : product.stock}
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-5 max-w-xs">
+                    <td className="px-4 py-5">
                       {editingId === product.id ? (
                         <textarea
-                          className="input-field"
+                          className="input-field w-full resize-y"
                           rows="3"
                           value={editForm.description}
                           onChange={(e) =>
@@ -532,13 +533,13 @@ function AdminProducts() {
                           }
                         />
                       ) : (
-                        <p className="text-sm text-[#6d4c2f] whitespace-pre-wrap">
+                        <p className="line-clamp-4 whitespace-pre-wrap break-words text-sm leading-6 text-[#6d4c2f]">
                           {product.description || "No description"}
                         </p>
                       )}
                     </td>
 
-                    <td className="px-6 py-5 text-center">
+                    <td className="px-4 py-5 text-center">
                       {editingId === product.id ? (
                         <div className="flex flex-col gap-2">
                           <button
@@ -567,7 +568,7 @@ function AdminProducts() {
                         </div>
                       ) : (
                         <div className="flex flex-col gap-2">
-                          <div className="grid grid-cols-[1fr_auto] gap-2">
+                          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
                             <input
                               type="number"
                               min="1"
@@ -586,7 +587,7 @@ function AdminProducts() {
                               onClick={() => handleRestock(product)}
                               className="rounded-xl bg-green-600 px-3 py-2 text-sm font-bold text-white hover:bg-green-700"
                             >
-                              Restock
+                              Add
                             </button>
                           </div>
                           <button
