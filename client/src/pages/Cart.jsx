@@ -293,7 +293,7 @@ function Cart() {
               <div className="mt-6 grid gap-3">
                 {[
                   ["truck", "Free delivery in Consolacion, Liloan, and Compostela"],
-                  ["shield", "Cash on Delivery available for local orders"],
+                  ["shield", "Cash on Delivery & GCAsh available for local orders"],
                 ].map(([icon, text]) => (
                   <div
                     key={text}
