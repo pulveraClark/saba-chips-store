@@ -56,7 +56,7 @@ const buildOrderTimelineMap = async (orderIds) => {
       status = "cancellation requested";
     } else {
       const statusMatch = log.details?.match(
-        /\bto\s+(payment_verification|pending|confirmed|preparing|out_for_delivery|shipped|delivered|cancelled|approved|rejected|refunded)\b/i
+        /\bto\s+(payment_verification|pending|confirmed|preparing|out_for_delivery|delivered|cancelled|approved|rejected|refunded)\b/i
       );
       if (statusMatch) {
         status = statusMatch[1].toLowerCase();
@@ -599,7 +599,6 @@ exports.updateOrderStatus = (req, res) => {
     "confirmed",
     "preparing",
     "out_for_delivery",
-    "shipped",
     "delivered",
     "cancelled",
   ];
@@ -679,7 +678,7 @@ exports.requestCancellation = async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    if (["out_for_delivery", "shipped", "delivered", "cancelled"].includes(orders[0].status)) {
+    if (["out_for_delivery", "delivered", "cancelled"].includes(orders[0].status)) {
       return res.status(400).json({
         message: "This order can no longer be requested for cancellation",
       });

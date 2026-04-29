@@ -40,7 +40,6 @@ function Admin() {
     totalSales: 0,
     pendingOrders: 0,
     confirmedOrders: 0,
-    shippedOrders: 0,
     deliveredOrders: 0,
     cancelledOrders: 0,
     lowStockProducts: 0,
@@ -100,8 +99,7 @@ function Admin() {
     Number(summary.pendingOrders || 0) +
     Number(summary.confirmedOrders || 0) +
     Number(summary.preparingOrders || 0) +
-    Number(summary.outForDeliveryOrders || 0) +
-    Number(summary.shippedOrders || 0);
+    Number(summary.outForDeliveryOrders || 0);
 
   const metrics = [
     ["Pending Orders", summary.pendingOrders, "orders", "orders"],

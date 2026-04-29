@@ -20,7 +20,6 @@ const statusStyles = {
   confirmed: "bg-blue-100 text-blue-800 border-blue-200",
   preparing: "bg-cyan-100 text-cyan-800 border-cyan-200",
   out_for_delivery: "bg-purple-100 text-purple-800 border-purple-200",
-  shipped: "bg-violet-100 text-violet-800 border-violet-200",
   delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   cancelled: "bg-red-100 text-red-800 border-red-200",
 };
@@ -168,7 +167,7 @@ function AdminOrders() {
     });
   }, [orderSearch, sortedOrders, statusFilter]);
   const activeOrders = orders.filter((order) =>
-        ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery", "shipped"].includes(order.status)
+        ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery"].includes(order.status)
   ).length;
   const totalPages = Math.max(1, Math.ceil(visibleOrders.length / ORDERS_PER_PAGE));
   const paginatedOrders = visibleOrders.slice(
@@ -262,7 +261,6 @@ function AdminOrders() {
                   ["confirmed", "Confirmed"],
                   ["preparing", "Preparing"],
                   ["out_for_delivery", "Out for Delivery"],
-                  ["shipped", "Shipped"],
                   ["delivered", "Delivered"],
                   ["cancelled", "Cancelled"],
                   ["cancellation_pending", "Cancel Requests"],
@@ -508,7 +506,6 @@ function AdminOrderCard({
             <option value="confirmed">confirmed</option>
             <option value="preparing">preparing</option>
             <option value="out_for_delivery">out for delivery</option>
-            <option value="shipped">shipped</option>
             <option value="delivered">delivered</option>
             <option value="cancelled">cancelled</option>
           </select>

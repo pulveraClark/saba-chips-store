@@ -6,13 +6,12 @@ const labels = {
   confirmed: "Confirmed",
   preparing: "Preparing",
   out_for_delivery: "Out for Delivery",
-  shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
 
 function OrderTimeline({ status, timeline = [] }) {
-  const normalizedStatus = status === "shipped" ? "out_for_delivery" : status;
+  const normalizedStatus = status;
   const activeIndex =
     normalizedStatus === "cancelled" ? -1 : statusSteps.indexOf(normalizedStatus);
 

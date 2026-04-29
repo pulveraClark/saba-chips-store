@@ -32,7 +32,6 @@ exports.up = async () => {
       'confirmed',
       'preparing',
       'out_for_delivery',
-      'shipped',
       'delivered',
       'cancelled'
     ) NOT NULL DEFAULT 'pending'

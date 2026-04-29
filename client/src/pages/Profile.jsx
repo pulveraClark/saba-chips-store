@@ -19,7 +19,6 @@ const statusStyles = {
   confirmed: "bg-blue-100 text-blue-800 border-blue-200",
   preparing: "bg-cyan-100 text-cyan-800 border-cyan-200",
   out_for_delivery: "bg-purple-100 text-purple-800 border-purple-200",
-  shipped: "bg-violet-100 text-violet-800 border-violet-200",
   delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
   cancelled: "bg-red-100 text-red-800 border-red-200",
 };
@@ -89,7 +88,7 @@ function Profile() {
   const filteredOrders = useMemo(() => {
     if (orderFilter === "active") {
       return sortedOrders.filter((order) =>
-        ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery", "shipped"].includes(order.status)
+        ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery"].includes(order.status)
       );
     }
     if (orderFilter === "completed") {
@@ -101,7 +100,7 @@ function Profile() {
     return sortedOrders;
   }, [orderFilter, sortedOrders]);
   const activeOrders = sortedOrders.filter((order) =>
-    ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery", "shipped"].includes(order.status)
+    ["payment_verification", "pending", "confirmed", "preparing", "out_for_delivery"].includes(order.status)
   );
   const totalSpent = sortedOrders.reduce((sum, order) => sum + Number(order.total), 0);
   const latestStatus = sortedOrders[0]?.status || "No orders yet";

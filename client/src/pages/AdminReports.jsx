@@ -52,7 +52,6 @@ function AdminReports() {
     confirmedOrders: 0,
     preparingOrders: 0,
     outForDeliveryOrders: 0,
-    shippedOrders: 0,
     deliveredOrders: 0,
     cancelledOrders: 0,
     lowStockProducts: 0,
@@ -172,7 +171,6 @@ function AdminReports() {
     { metric: "Confirmed Orders", value: summary.confirmedOrders || 0 },
     { metric: "Preparing Orders", value: summary.preparingOrders || 0 },
     { metric: "Out for Delivery Orders", value: summary.outForDeliveryOrders || 0 },
-    { metric: "Shipped Orders", value: summary.shippedOrders || 0 },
     { metric: "Delivered Orders", value: summary.deliveredOrders || 0 },
     { metric: "Cancelled Orders", value: summary.cancelledOrders || 0 },
     { metric: "Average Order Value", value: Number(summary.averageOrderValue || 0).toFixed(2) },
@@ -233,11 +231,6 @@ function AdminReports() {
       label: "Out for Delivery",
       value: summary.outForDeliveryOrders || 0,
       className: "border-purple-200 bg-purple-50 text-purple-700",
-    },
-    {
-      label: "Shipped",
-      value: summary.shippedOrders || 0,
-      className: "border-violet-200 bg-violet-50 text-violet-700",
     },
     {
       label: "Delivered",
@@ -720,8 +713,6 @@ function AdminReports() {
                               ? "bg-yellow-100 text-yellow-700"
                               : transaction.status === "confirmed"
                               ? "bg-blue-100 text-blue-700"
-                              : transaction.status === "shipped"
-                              ? "bg-purple-100 text-purple-700"
                               : transaction.status === "delivered"
                               ? "bg-green-100 text-green-700"
                               : transaction.status === "cancelled"
