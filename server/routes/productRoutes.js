@@ -6,6 +6,7 @@ const upload = require("../middleware/uploadMiddleware");
 
 const {
   getAllProducts,
+  getProductById,
   getTopSellingProducts,
   createProduct,
   updateProduct,
@@ -15,6 +16,7 @@ const {
 
 // Public: users can view products
 router.get("/top-selling", getTopSellingProducts);
+router.get("/:id", getProductById);
 router.get("/", getAllProducts);
 
 // Admin-only

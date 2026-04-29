@@ -20,6 +20,7 @@ import AdminReports from "./pages/AdminReports.jsx";
 import AdminTransactions from "./pages/AdminTransactions.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
 import Messages from "./pages/Messages.jsx";
+import ProductPage from "./pages/ProductPage.jsx";
 
 function App() {
   return (
@@ -121,6 +122,14 @@ function App() {
               <AdminRoute>
                 <AdminOrders />
               </AdminRoute>
+            }
+          />
+          <Route
+            path="/product/:id"
+            element={
+              <ProtectedRoute>
+                <ProductPage />
+              </ProtectedRoute>
             }
           />
           <Route

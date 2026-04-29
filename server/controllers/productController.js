@@ -54,6 +54,42 @@ exports.getTopSellingProducts = async (req, res) => {
   }
 };
 
+exports.getProductById = async (req, res) => {
+  try {
+    const userId = req.session?.userId || null;
+    const query = `SELECT
+         p.*,
+         COALESCE(AVG(pr.rating), 0) AS average_rating,
+         COUNT(pr.id) AS review_count,
+         ${userId ? "MAX(CASE WHEN w.id IS NULL THEN 0 ELSE 1 END)" : "0"} AS is_wishlisted
+       FROM products p
+       LEFT JOIN product_reviews pr ON pr.product_id = p.id
+       ${userId ? "LEFT JOIN wishlists w ON w.product_id = p.id AND w.user_id = ?" : ""}
+       WHERE p.id = ?
+       GROUP BY p.id`;
+
+    const params = userId ? [userId, req.params.id] : [req.params.id];
+    const rows = await queryAsync(query, params);
+
+    if (!rows.length) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    const product = rows[0];
+    res.json({
+      product: {
+        ...product,
+        average_rating: Number(product.average_rating || 0),
+        review_count: Number(product.review_count || 0),
+        is_wishlisted: Boolean(product.is_wishlisted),
+      },
+    });
+  } catch (err) {
+    console.error("Failed to fetch product details:", err);
+    res.status(500).json({ message: "Failed to fetch product details" });
+  }
+};
+
 exports.createProduct = (req, res) => {
   const { name, price, description, stock, category = "classic" } = req.body;
   const image = req.file?.storageUrl || null;

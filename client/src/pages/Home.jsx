@@ -640,18 +640,27 @@ function Home() {
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleAddToCart(product)}
-                      disabled={stock <= 0}
-                      className={`inline-flex w-full items-center justify-center gap-2 rounded-2xl py-3 font-black transition ${
-                        stock <= 0
-                          ? "cursor-not-allowed bg-gray-200 text-gray-500"
-                          : "bg-[#8b5e34] text-white hover:bg-[#714a28]"
-                      }`}
-                    >
-                      <Icon name="bag" className="h-5 w-5" />
-                      {stock <= 0 ? "Out of Stock" : "Add to Cart"}
-                    </button>
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <button
+                        onClick={() => handleAddToCart(product)}
+                        disabled={stock <= 0}
+                        className={`inline-flex w-full flex-1 items-center justify-center gap-2 rounded-2xl py-3 font-black transition ${
+                          stock <= 0
+                            ? "cursor-not-allowed bg-gray-200 text-gray-500"
+                            : "bg-[#8b5e34] text-white hover:bg-[#714a28]"
+                        }`}
+                      >
+                        <Icon name="bag" className="h-5 w-5" />
+                        {stock <= 0 ? "Out of Stock" : "Add to Cart"}
+                      </button>
+
+                      <Link
+                        to={`/product/${product.id}`}
+                        className="inline-flex w-full items-center justify-center rounded-2xl border border-[#d8be96] bg-[#fffaf2] px-4 py-3 text-sm font-black text-[#8b5e34] transition hover:bg-[#f5e4c9] sm:w-auto"
+                      >
+                        View details
+                      </Link>
+                    </div>
                   </div>
                 </div>
               );
