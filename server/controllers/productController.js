@@ -56,7 +56,7 @@ exports.getTopSellingProducts = async (req, res) => {
 
 exports.createProduct = (req, res) => {
   const { name, price, description, stock, category = "classic" } = req.body;
-  const image = req.file ? `/uploads/${req.file.filename}` : null;
+  const image = req.file?.storageUrl || null;
   const currentUser = req.session.user;
 
   if (!name || !price) {
@@ -126,7 +126,7 @@ exports.updateProduct = (req, res) => {
     let imagePath = existingImage || oldProduct.image;
 
     if (req.file) {
-      imagePath = `/uploads/${req.file.filename}`;
+      imagePath = req.file.storageUrl;
     }
 
     db.query(

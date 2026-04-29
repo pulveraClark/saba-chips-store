@@ -115,7 +115,7 @@ exports.sendMessage = async (req, res) => {
   try {
     const senderId = req.session.userId;
     const message = req.body.message?.trim() || "";
-    const image = req.file ? `/uploads/${req.file.filename}` : null;
+    const image = req.file?.storageUrl || null;
 
     if (!message && !image) {
       return res.status(400).json({ message: "Message or image is required" });
