@@ -47,8 +47,11 @@ function AdminReports() {
     totalProducts: 0,
     totalOrders: 0,
     totalSales: 0,
+    paymentVerificationOrders: 0,
     pendingOrders: 0,
     confirmedOrders: 0,
+    preparingOrders: 0,
+    outForDeliveryOrders: 0,
     shippedOrders: 0,
     deliveredOrders: 0,
     cancelledOrders: 0,
@@ -164,8 +167,11 @@ function AdminReports() {
     { metric: "Total Products", value: summary.totalProducts || 0 },
     { metric: "Total Orders", value: summary.totalOrders || 0 },
     { metric: "Delivered Sales", value: Number(summary.totalSales || 0).toFixed(2) },
+    { metric: "Payment Check Orders", value: summary.paymentVerificationOrders || 0 },
     { metric: "Pending Orders", value: summary.pendingOrders || 0 },
     { metric: "Confirmed Orders", value: summary.confirmedOrders || 0 },
+    { metric: "Preparing Orders", value: summary.preparingOrders || 0 },
+    { metric: "Out for Delivery Orders", value: summary.outForDeliveryOrders || 0 },
     { metric: "Shipped Orders", value: summary.shippedOrders || 0 },
     { metric: "Delivered Orders", value: summary.deliveredOrders || 0 },
     { metric: "Cancelled Orders", value: summary.cancelledOrders || 0 },
@@ -201,6 +207,49 @@ function AdminReports() {
       .map((item) => `${item.product_name} x${item.quantity}`)
       .join(", "),
   }));
+
+  const orderStatusCards = [
+    {
+      label: "Payment Check",
+      value: summary.paymentVerificationOrders || 0,
+      className: "border-orange-200 bg-orange-50 text-orange-700",
+    },
+    {
+      label: "Pending",
+      value: summary.pendingOrders || 0,
+      className: "border-yellow-200 bg-yellow-50 text-yellow-700",
+    },
+    {
+      label: "Confirmed",
+      value: summary.confirmedOrders || 0,
+      className: "border-blue-200 bg-blue-50 text-blue-700",
+    },
+    {
+      label: "Preparing",
+      value: summary.preparingOrders || 0,
+      className: "border-cyan-200 bg-cyan-50 text-cyan-700",
+    },
+    {
+      label: "Out for Delivery",
+      value: summary.outForDeliveryOrders || 0,
+      className: "border-purple-200 bg-purple-50 text-purple-700",
+    },
+    {
+      label: "Shipped",
+      value: summary.shippedOrders || 0,
+      className: "border-violet-200 bg-violet-50 text-violet-700",
+    },
+    {
+      label: "Delivered",
+      value: summary.deliveredOrders || 0,
+      className: "border-green-200 bg-green-50 text-green-700",
+    },
+    {
+      label: "Cancelled",
+      value: summary.cancelledOrders || 0,
+      className: "border-red-200 bg-red-50 text-red-700",
+    },
+  ];
 
   const summaryColumns = [
     { key: "metric", label: "Metric" },
@@ -296,43 +345,48 @@ function AdminReports() {
         </div>
 
         <div className="bg-white rounded-3xl p-5 shadow-lg border border-[#ead7b8] mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div className="grid gap-4 lg:grid-cols-[minmax(220px,360px)_1fr] lg:items-start">
             <div>
               <h2 className="text-2xl font-black text-[#8b5e34]">Export Reports</h2>
-              <p className="text-[#6d4c2f]">Download your reports in CSV, Excel, or PDF-ready format.</p>
+              <p className="text-[#6d4c2f]">Download your reports in CSV, Excel, or PDF.</p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={handleExportSummaryCsv}
-                className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28]"
-              >
-                Summary CSV
-              </button>
-              <button
-                onClick={handleExportSummaryExcel}
-                className="px-4 py-3 rounded-2xl bg-[#b8834d] text-white font-bold hover:bg-[#9e6d3b]"
-              >
-                Summary Excel
-              </button>
-              <button
-                onClick={handleExportTransactionsCsv}
-                className="px-4 py-3 rounded-2xl bg-[#8b5e34] text-white font-bold hover:bg-[#714a28]"
-              >
-                Transactions CSV
-              </button>
-              <button
-                onClick={handleExportTransactionsExcel}
-                className="px-4 py-3 rounded-2xl bg-[#b8834d] text-white font-bold hover:bg-[#9e6d3b]"
-              >
-                Transactions Excel
-              </button>
-              <button
-                onClick={handleExportReportsPdf}
-                className="px-4 py-3 rounded-2xl bg-[#2f4858] text-white font-bold hover:bg-[#243946]"
-              >
-                Export PDF
-              </button>
-            </div>
+            <details className="rounded-2xl border border-[#ead7b8] bg-[#fffaf2] p-3" open>
+              <summary className="cursor-pointer list-none font-black text-[#8b5e34]">
+                Export options
+              </summary>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <button
+                  onClick={handleExportSummaryCsv}
+                  className="min-h-12 rounded-xl bg-[#8b5e34] px-4 py-3 font-bold text-white hover:bg-[#714a28]"
+                >
+                  Summary CSV
+                </button>
+                <button
+                  onClick={handleExportSummaryExcel}
+                  className="min-h-12 rounded-xl bg-[#b8834d] px-4 py-3 font-bold text-white hover:bg-[#9e6d3b]"
+                >
+                  Summary Excel
+                </button>
+                <button
+                  onClick={handleExportTransactionsCsv}
+                  className="min-h-12 rounded-xl bg-[#8b5e34] px-4 py-3 font-bold text-white hover:bg-[#714a28]"
+                >
+                  Transactions CSV
+                </button>
+                <button
+                  onClick={handleExportTransactionsExcel}
+                  className="min-h-12 rounded-xl bg-[#b8834d] px-4 py-3 font-bold text-white hover:bg-[#9e6d3b]"
+                >
+                  Transactions Excel
+                </button>
+                <button
+                  onClick={handleExportReportsPdf}
+                  className="min-h-12 rounded-xl bg-[#2f4858] px-4 py-3 font-bold text-white hover:bg-[#243946] sm:col-span-2 xl:col-span-1"
+                >
+                  Export PDF
+                </button>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -364,27 +418,18 @@ function AdminReports() {
           <h2 className="text-2xl font-black text-[#8b5e34] mb-4">
             Order Status Counts
           </h2>
-          <div className="grid sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            <div className="bg-yellow-50 rounded-2xl p-5 border border-yellow-200">
-              <p className="text-sm text-yellow-700 mb-2">Pending</p>
-              <h3 className="text-3xl font-black text-yellow-700">{summary.pendingOrders || 0}</h3>
-            </div>
-            <div className="bg-blue-50 rounded-2xl p-5 border border-blue-200">
-              <p className="text-sm text-blue-700 mb-2">Confirmed</p>
-              <h3 className="text-3xl font-black text-blue-700">{summary.confirmedOrders || 0}</h3>
-            </div>
-            <div className="bg-purple-50 rounded-2xl p-5 border border-purple-200">
-              <p className="text-sm text-purple-700 mb-2">Shipped</p>
-              <h3 className="text-3xl font-black text-purple-700">{summary.shippedOrders || 0}</h3>
-            </div>
-            <div className="bg-green-50 rounded-2xl p-5 border border-green-200">
-              <p className="text-sm text-green-700 mb-2">Delivered</p>
-              <h3 className="text-3xl font-black text-green-700">{summary.deliveredOrders || 0}</h3>
-            </div>
-            <div className="bg-red-50 rounded-2xl p-5 border border-red-200">
-              <p className="text-sm text-red-700 mb-2">Cancelled</p>
-              <h3 className="text-3xl font-black text-red-700">{summary.cancelledOrders || 0}</h3>
-            </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {orderStatusCards.map((status) => (
+              <div
+                key={status.label}
+                className={`rounded-2xl border p-5 ${status.className}`}
+              >
+                <p className="mb-2 min-h-10 text-sm font-bold leading-snug">
+                  {status.label}
+                </p>
+                <h3 className="text-3xl font-black">{status.value}</h3>
+              </div>
+            ))}
           </div>
         </div>
 

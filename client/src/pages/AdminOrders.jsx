@@ -231,7 +231,7 @@ function AdminOrders() {
             </p>
           </div>
 
-          <div className="grid gap-4 border-b border-[#ead7b8] p-5 lg:grid-cols-[1fr_auto]">
+          <div className="grid gap-4 border-b border-[#ead7b8] p-5 lg:grid-cols-[minmax(260px,420px)_1fr]">
             <label className="block">
               <span className="mb-2 block text-sm font-bold text-[#7a5331]">
                 Search orders
@@ -247,9 +247,14 @@ function AdminOrders() {
               />
             </label>
 
-            <div>
-              <p className="mb-2 text-sm font-bold text-[#7a5331]">Filter</p>
-              <div className="flex max-w-full gap-2 overflow-x-auto">
+            <details className="rounded-xl border border-[#ead7b8] bg-[#fffaf2] p-3" open>
+              <summary className="cursor-pointer list-none text-sm font-black text-[#7a5331]">
+                Filters:{" "}
+                <span className="capitalize text-[#8b5e34]">
+                  {statusFilter.replaceAll("_", " ")}
+                </span>
+              </summary>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
                 {[
                   ["all", "All"],
                   ["payment_verification", "Payment Check"],
@@ -268,17 +273,17 @@ function AdminOrders() {
                       setStatusFilter(value);
                       setPage(1);
                     }}
-                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-black ${
+                    className={`min-h-10 rounded-full px-3 py-2 text-sm font-black ${
                       statusFilter === value
                         ? "bg-[#8b5e34] text-white"
-                        : "border border-[#ead7b8] bg-white text-[#8b5e34] hover:bg-[#fffaf2]"
+                        : "border border-[#ead7b8] bg-white text-[#8b5e34] hover:bg-white"
                     }`}
                   >
                     {label}
                   </button>
                 ))}
               </div>
-            </div>
+            </details>
           </div>
 
           {orders.length === 0 ? (
