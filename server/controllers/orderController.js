@@ -173,7 +173,7 @@ exports.checkout = (req, res) => {
     notes = "",
     paymentReference = "",
   } = req.body;
-  const paymentProofImage = req.file ? `/uploads/${req.file.filename}` : null;
+  const paymentProofImage = req.file?.storageUrl || null;
 
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });

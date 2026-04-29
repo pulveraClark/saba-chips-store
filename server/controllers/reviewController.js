@@ -5,7 +5,7 @@ exports.createReview = async (req, res) => {
     const userId = req.session.userId;
     const { orderId, productId, rating, comment = "" } = req.body;
     const numericRating = Number(rating);
-    const image = req.file ? `/uploads/${req.file.filename}` : null;
+    const image = req.file?.storageUrl || null;
 
     if (!orderId || !productId || !Number.isInteger(numericRating) || numericRating < 1 || numericRating > 5) {
       return res.status(400).json({ message: "A 1 to 5 rating is required" });
