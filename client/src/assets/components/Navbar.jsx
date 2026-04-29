@@ -188,9 +188,7 @@ function Navbar() {
             onClick={closeMenus}
             className="group inline-flex items-center gap-3 self-start rounded-full pr-4 transition"
           >
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#8b5e34] text-sm font-black tracking-wide text-white shadow-md transition group-hover:bg-[#714a28]">
-              SC
-            </span>
+           
             <span>
               <span className="block text-xl font-black leading-tight text-[#5f432c]">
                 Saba Chips
