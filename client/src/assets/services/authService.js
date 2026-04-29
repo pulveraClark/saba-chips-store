@@ -64,6 +64,10 @@ export const loginUser = async (data) => {
   return res.data;
 };
 
+export const initializeCsrfToken = async () => {
+  await fetchCsrfToken();
+};
+
 export const logoutUser = async () => {
   const res = await api.post(`${API}/logout`);
   return res.data;

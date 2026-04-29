@@ -145,9 +145,9 @@ function Messages() {
         <div className="mb-6 flex items-center justify-between gap-4">
           <div>
             <Link to={isAdmin ? "/admin" : "/home"} className="text-[#8b5e34] font-semibold">
-              Back
+              ← Back
             </Link>
-            <h1 className="text-4xl font-black text-[#8b5e34] mt-2">💬</h1>
+            
           </div>
           <button
             onClick={() => {

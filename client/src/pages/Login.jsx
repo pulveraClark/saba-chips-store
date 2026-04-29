@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { loginUser } from "../assets/services/authService.js";
+import { initializeCsrfToken, loginUser } from "../assets/services/authService.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
@@ -12,6 +12,12 @@ function Login() {
   const { refreshUser } = useAuth();
   const { refreshCartCount } = useCart();
   const { notify } = useNotification();
+
+  useEffect(() => {
+    void initializeCsrfToken().catch(() => {
+      // ignore prefetch failures; login flow will still try again on submit
+    });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
