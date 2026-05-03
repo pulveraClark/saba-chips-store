@@ -3,6 +3,7 @@ const userRolesMigration = require("../migrations/002_user_roles");
 const wishlistReviewsMigration = require("../migrations/003_wishlist_reviews");
 const realStoreWorkflowsMigration = require("../migrations/004_real_store_workflows");
 const chatImagesMigration = require("../migrations/005_chat_images");
+const productionInfrastructureMigration = require("../migrations/006_production_infrastructure");
 const queryAsync = require("./queryAsync");
 
 const migrations = [
@@ -11,6 +12,7 @@ const migrations = [
   wishlistReviewsMigration,
   realStoreWorkflowsMigration,
   chatImagesMigration,
+  productionInfrastructureMigration,
 ];
 
 const runMigrations = async () => {

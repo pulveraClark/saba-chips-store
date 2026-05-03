@@ -1,14 +1,32 @@
 const multer = require("multer");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const { v2: cloudinary } = require("cloudinary");
 
-const hasCloudinaryConfig =
+const isProduction = process.env.NODE_ENV === "production";
+const hasCloudinaryConfig = Boolean(
   process.env.CLOUDINARY_CLOUD_NAME &&
   process.env.CLOUDINARY_API_KEY &&
-  process.env.CLOUDINARY_API_SECRET;
+    process.env.CLOUDINARY_API_SECRET
+);
+const allowedMimeTypes = new Set(
+  (process.env.ALLOWED_UPLOAD_MIME_TYPES || "image/jpeg,image/png,image/webp")
+    .split(",")
+    .map((type) => type.trim().toLowerCase())
+    .filter(Boolean)
+);
+const extensionByMimeType = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
 
 const uploadDir = path.join(__dirname, "..", "uploads");
+
+if (isProduction && !hasCloudinaryConfig) {
+  throw new Error("Cloudinary configuration is required in production");
+}
 
 if (!hasCloudinaryConfig && !fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -27,13 +45,27 @@ const localStorage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
+    const originalExt = path.extname(file.originalname || "").toLowerCase();
+    const safeExt = extensionByMimeType[file.mimetype] || originalExt || ".img";
+    cb(null, `${crypto.randomUUID()}${safeExt}`);
   },
 });
+
+const fileFilter = (req, file, cb) => {
+  if (!allowedMimeTypes.has(String(file.mimetype || "").toLowerCase())) {
+    const err = new Error("Only JPEG, PNG, and WebP image uploads are allowed");
+    err.statusCode = 400;
+    cb(err);
+    return;
+  }
+
+  cb(null, true);
+};
 
 const storage = hasCloudinaryConfig ? multer.memoryStorage() : localStorage;
 const baseUpload = multer({
   storage,
+  fileFilter,
   limits: {
     fileSize: Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024),
   },
@@ -45,6 +77,10 @@ const uploadBufferToCloudinary = (file) =>
       {
         folder: process.env.CLOUDINARY_FOLDER || "saba-chips-store",
         resource_type: "image",
+        allowed_formats: ["jpg", "jpeg", "png", "webp"],
+        overwrite: false,
+        unique_filename: true,
+        use_filename: false,
       },
       (error, result) => {
         if (error) {

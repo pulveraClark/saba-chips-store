@@ -47,7 +47,7 @@ NODE_ENV=production
 PORT=10000
 SESSION_SECRET=replace_with_a_long_random_secret
 CLIENT_URL=https://your-frontend.vercel.app
-CLIENT_URLS=https://your-frontend.vercel.app,http://localhost:5173
+CLIENT_URLS=https://your-frontend.vercel.app
 
 DB_HOST=your-aiven-host
 DB_PORT=your-aiven-port
@@ -56,12 +56,21 @@ DB_PASSWORD=your-aiven-password
 DB_NAME=your-aiven-database
 DB_SSL=true
 DB_SSL_CA=your-aiven-ca-certificate
+DB_CONNECTION_LIMIT=10
+DB_QUEUE_LIMIT=0
 
 CLOUDINARY_CLOUD_NAME=your-cloud-name
 CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 CLOUDINARY_FOLDER=saba-chips-store
 MAX_UPLOAD_BYTES=5242880
+ALLOWED_UPLOAD_MIME_TYPES=image/jpeg,image/png,image/webp
+
+JSON_BODY_LIMIT=1mb
+URLENCODED_BODY_LIMIT=1mb
+
+GCASH_ACCOUNT_NAME=your-gcash-account-name
+GCASH_NUMBER=your-gcash-number
 
 GROQ_API_KEY=optional
 MAILTRAP_HOST=live.smtp.mailtrap.io
@@ -98,12 +107,29 @@ After Vercel deploys, copy the Vercel URL and update the backend Render env vars
 
 ```env
 CLIENT_URL=https://your-frontend.vercel.app
-CLIENT_URLS=https://your-frontend.vercel.app,http://localhost:5173
+CLIENT_URLS=https://your-frontend.vercel.app
 ```
 
 Redeploy the backend after changing those values.
 
-## 5. Live Smoke Test
+Do not leave `VITE_API_BASE_URL` empty on Vercel unless you also configure an API proxy. The included `client/vercel.json` only rewrites frontend SPA routes to `index.html`; it does not proxy `/api` requests to Render.
+
+## 5. Production Safety Checks
+
+Before real users use the app:
+
+- Confirm Render health checks use `/api/health`.
+- Confirm `NODE_ENV=production`; otherwise cookies, env validation, and persistent rate limits will not use production behavior.
+- Confirm `SESSION_SECRET` is at least 32 random characters.
+- Confirm Aiven automatic backups are enabled and test one restore into a temporary database.
+- Confirm `DB_SSL=true` and `DB_SSL_CA` contains the full Aiven CA certificate with line breaks preserved.
+- Confirm Cloudinary credentials are present. In production, the server intentionally fails startup if Cloudinary is missing.
+- Confirm Cloudinary upload presets or account settings do not allow unsigned public uploads for this app.
+- Confirm only JPEG, PNG, and WebP images upload successfully; SVG and other file types should fail.
+- Configure Render log retention or connect a logging/error-monitoring service such as Sentry, Logtail, or Better Stack.
+- Rotate any secret that was ever pasted into a chat, screenshot, commit, or public issue.
+
+## 6. Live Smoke Test
 
 Test these features after deployment:
 
@@ -121,7 +147,8 @@ Test these features after deployment:
 - Product review with image
 - Admin reports and exports
 
-## Free-Tier Notes
+## 7. Free-Tier Notes
 
 Render free web services can spin down after inactivity, so the first request may take about a minute.
 Do not depend on Render local files for uploaded images. This project uses Cloudinary in production to keep uploaded images persistent.
+Sessions and rate-limit buckets are stored in Aiven MySQL, so Render restarts should no longer sign users out immediately.

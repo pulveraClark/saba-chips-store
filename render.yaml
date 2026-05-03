@@ -1,0 +1,63 @@
+services:
+  - type: web
+    name: saba-chips-store-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: CLIENT_URLS
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SSL_CA
+        sync: false
+      - key: DB_CONNECTION_LIMIT
+        value: "10"
+      - key: DB_QUEUE_LIMIT
+        value: "0"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: saba-chips-store
+      - key: MAX_UPLOAD_BYTES
+        value: "5242880"
+      - key: ALLOWED_UPLOAD_MIME_TYPES
+        value: image/jpeg,image/png,image/webp
+      - key: GCASH_ACCOUNT_NAME
+        sync: false
+      - key: GCASH_NUMBER
+        sync: false
+      - key: MAILTRAP_HOST
+        value: live.smtp.mailtrap.io
+      - key: MAILTRAP_PORT
+        value: "587"
+      - key: MAILTRAP_USER
+        value: api
+      - key: MAILTRAP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
