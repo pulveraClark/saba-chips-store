@@ -7,7 +7,6 @@ import {
   getTopProductsChartData,
   getAdvancedInsights,
 } from "../assets/services/adminService.js";
-import { sortByNewest } from "../utils/sortByNewest.js";
 import {
   exportToCsv,
   exportToExcel,
