@@ -754,8 +754,16 @@ exports.reviewPayment = async (req, res) => {
       return res.status(400).json({ message: "Only GCash orders need payment review" });
     }
 
+    if (rows[0].payment_status !== "pending_verification") {
+      return res.status(400).json({ message: "This GCash payment has already been reviewed" });
+    }
+
     const nextPaymentStatus = decision === "approved" ? "verified" : "rejected";
-    const nextOrderStatus = decision === "approved" ? "pending" : "payment_verification";
+    const nextOrderStatus = decision === "approved" ? "pending" : "cancelled";
+
+    if (decision === "rejected") {
+      await syncInventoryForStatusChange(orderId, rows[0].status, "cancelled");
+    }
 
     await queryAsync(
       `UPDATE orders
@@ -782,7 +790,7 @@ exports.reviewPayment = async (req, res) => {
       message:
         decision === "approved"
           ? `Your GCash payment for Order #${orderId} was verified.`
-          : `Your GCash payment for Order #${orderId} needs checking. ${note || ""}`.trim(),
+          : `Your GCash payment for Order #${orderId} was rejected, so the order was cancelled. ${note || ""}`.trim(),
       link: "/profile",
     });
 
