@@ -575,6 +575,11 @@ function OrderCard({
                 Refund pending
               </span>
             )}
+            {order.payment_status === "rejected" && (
+              <span className="rounded-full border border-red-300 bg-red-100 px-3 py-1 text-xs font-black text-red-800">
+                Payment rejected
+              </span>
+            )}
             {order.payment_status === "refunded" && (
               <span className="rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
                 Refunded
