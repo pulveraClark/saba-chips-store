@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   getChatEventsUrl,
   getConversations,
@@ -32,10 +32,13 @@ function PhotoIcon({ className = "h-5 w-5" }) {
 function Messages() {
   const { user, isAdmin } = useAuth();
   const { notify } = useNotification();
+  const [searchParams] = useSearchParams();
+  const requestedCustomerId = searchParams.get("customerId");
   const [conversations, setConversations] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
+  const [customerFilter, setCustomerFilter] = useState("");
   const [imageFile, setImageFile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -49,12 +52,30 @@ function Messages() {
   const unreadConversationCount = conversations.filter(
     (conversation) => Number(conversation.unread_count || 0) > 0
   ).length;
+  const visibleConversations = useMemo(() => {
+    const search = customerFilter.trim().toLowerCase();
+
+    if (!isAdmin || !search) {
+      return conversations;
+    }
+
+    return conversations.filter((conversation) =>
+      `${conversation.name || ""} ${conversation.email || ""}`
+        .toLowerCase()
+        .includes(search)
+    );
+  }, [conversations, customerFilter, isAdmin]);
 
   const fetchConversations = useCallback(async () => {
     try {
       const data = await getConversations();
+      const requestedConversation = data?.find(
+        (conversation) => Number(conversation.user_id) === Number(requestedCustomerId)
+      );
       setConversations(data || []);
-      setSelectedUserId((current) => current || data?.[0]?.user_id || null);
+      setSelectedUserId((current) =>
+        current || (isAdmin && requestedConversation?.user_id) || data?.[0]?.user_id || null
+      );
     } catch {
       notify({
         type: "error",
@@ -64,7 +85,7 @@ function Messages() {
     } finally {
       setLoading(false);
     }
-  }, [notify]);
+  }, [isAdmin, notify, requestedCustomerId]);
 
   const fetchMessages = useCallback(async (userId) => {
     try {
@@ -190,11 +211,24 @@ function Messages() {
                 </span>
               )}
             </div>
+            {isAdmin && (
+              <div className="border-b border-[#f1e3ca] bg-[#fffaf2] p-3">
+                <input
+                  type="search"
+                  value={customerFilter}
+                  onChange={(e) => setCustomerFilter(e.target.value)}
+                  className="w-full rounded-xl border border-[#d8be96] bg-white px-4 py-3 text-sm text-[#6d4c2f] outline-none focus:ring-2 focus:ring-[#8b5e34]"
+                  placeholder="Search customers..."
+                />
+              </div>
+            )}
             <div className="divide-y divide-[#f1e3ca]">
-              {conversations.length === 0 ? (
-                <div className="p-6 text-[#6d4c2f]">No conversations yet.</div>
+              {visibleConversations.length === 0 ? (
+                <div className="p-6 text-[#6d4c2f]">
+                  {isAdmin ? "No customers found." : "No conversations yet."}
+                </div>
               ) : (
-                conversations.map((conversation) => (
+                visibleConversations.map((conversation) => (
                   <button
                     key={conversation.user_id}
                     onClick={() => setSelectedUserId(conversation.user_id)}
@@ -222,11 +256,15 @@ function Messages() {
                     <p className="text-sm text-[#6d4c2f] truncate">
                       {conversation.last_message || conversation.email}
                     </p>
-                    {conversation.last_message_at && (
+                    {conversation.last_message_at ? (
                       <p className="mt-1 text-xs text-[#9a7654]">
                         {formatMessageTime(conversation.last_message_at)}
                       </p>
-                    )}
+                    ) : isAdmin ? (
+                      <p className="mt-1 text-xs font-bold text-[#9a7654]">
+                        New chat available
+                      </p>
+                    ) : null}
                   </button>
                 ))
               )}
