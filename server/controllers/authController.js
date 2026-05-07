@@ -6,6 +6,8 @@ const logActivity = require("../utils/logActivity");
 const queryAsync = require("../utils/queryAsync");
 const { ADMIN_EMAIL } = require("../utils/realtimeData");
 
+const isProduction = process.env.NODE_ENV === "production";
+
 exports.registerUser = async (req, res) => {
   const { name, email, password } = req.body;
 
@@ -117,6 +119,11 @@ exports.logoutUser = (req, res) => {
       });
     }
 
+    res.clearCookie("saba.sid", {
+      httpOnly: true,
+      sameSite: isProduction ? "none" : "lax",
+      secure: isProduction,
+    });
     res.json({ message: "Logout successful" });
   });
 };

@@ -10,8 +10,20 @@ const ensureCsrfToken = (req) => {
   return req.session.csrfToken;
 };
 
-const getCsrfToken = (req, res) => {
+const getCsrfToken = (req, res, next) => {
   const token = ensureCsrfToken(req);
+
+  if (typeof req.session.save === "function") {
+    req.session.save((err) => {
+      if (err) {
+        return next(err);
+      }
+
+      return res.json({ csrfToken: token });
+    });
+    return;
+  }
+
   res.json({ csrfToken: token });
 };
 
