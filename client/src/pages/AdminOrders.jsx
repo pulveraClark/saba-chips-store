@@ -293,11 +293,12 @@ function AdminOrders() {
                   No orders match your filters.
                 </div>
               ) : (
-                <div className="divide-y divide-[#f1e3ca]">
-                  {paginatedOrders.map((order) => (
+                <div className="space-y-4 bg-[#fffaf2] p-5">
+                  {paginatedOrders.map((order, index) => (
                     <AdminOrderCard
                       key={order.id}
                       order={order}
+                      colorTone={index % 2 === 0 ? "dark" : "brown"}
                       updating={updatingId === order.id}
                       reviewing={reviewingRequestId === order.cancellation_request?.id}
                       reviewingPayment={reviewingPaymentId === order.id}
@@ -442,6 +443,7 @@ function AdminOrderCard({
   adminNote,
   paymentNote,
   refundNote,
+  colorTone,
   onStatusChange,
   onAdminNoteChange,
   onPaymentNoteChange,
@@ -452,9 +454,11 @@ function AdminOrderCard({
 }) {
   const statusClass = statusStyles[order.status] || "bg-gray-100 text-gray-800 border-gray-200";
   const cancellation = order.cancellation_request;
+  const borderClass =
+    colorTone === "dark" ? "border-[#5f432c]" : "border-[#8b5e34]";
 
   return (
-    <article className="p-5">
+    <article className={`rounded-2xl border-2 bg-white p-5 shadow-sm ${borderClass}`}>
       <div className="grid gap-5 lg:grid-cols-[1fr_auto]">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -498,6 +502,14 @@ function AdminOrderCard({
         </div>
 
         <div className="min-w-56">
+          {order.user_id && (
+            <Link
+              to={`/messages?customerId=${order.user_id}`}
+              className="mb-3 block rounded-xl bg-[#8b5e34] px-4 py-3 text-center font-black text-white hover:bg-[#714a28]"
+            >
+              Chat Customer
+            </Link>
+          )}
           <label className="mb-2 block text-sm font-bold text-[#7a5331]">
             Update Status
           </label>

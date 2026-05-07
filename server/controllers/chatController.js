@@ -1,8 +1,9 @@
 const queryAsync = require("../utils/queryAsync");
-const { getAdminUser } = require("../utils/realtimeData");
+const { ADMIN_EMAIL, getAdminUser } = require("../utils/realtimeData");
 const { addChatClient, broadcastChatUpdate } = require("../utils/chatEvents");
+const { userIsAdmin } = require("../middleware/authMiddleware");
 
-const isCurrentUserAdmin = (req) => req.session.user?.email === "admin@sabachips.com";
+const isCurrentUserAdmin = (req) => userIsAdmin(req.session.user);
 
 exports.getConversations = async (req, res) => {
   try {
@@ -54,7 +55,7 @@ exports.getConversations = async (req, res) => {
          latest.created_at AS last_message_at,
          COALESCE(unread.unread_count, 0) AS unread_count
        FROM users u
-       JOIN (
+       LEFT JOIN (
          SELECT
            CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_user_id,
            MAX(id) AS latest_id
@@ -62,16 +63,21 @@ exports.getConversations = async (req, res) => {
          WHERE sender_id = ? OR receiver_id = ?
          GROUP BY other_user_id
        ) latest_ids ON latest_ids.other_user_id = u.id
-       JOIN chat_messages latest ON latest.id = latest_ids.latest_id
+       LEFT JOIN chat_messages latest ON latest.id = latest_ids.latest_id
        LEFT JOIN (
          SELECT sender_id, COUNT(*) AS unread_count
          FROM chat_messages
          WHERE receiver_id = ? AND is_read = 0
          GROUP BY sender_id
        ) unread ON unread.sender_id = u.id
-       WHERE u.email <> 'admin@sabachips.com'
-       ORDER BY latest.created_at DESC, latest.id DESC`,
-      [userId, userId, userId, userId]
+       WHERE u.email <> ? AND COALESCE(u.role, 'customer') <> 'admin'
+       ORDER BY
+         CASE WHEN latest.id IS NULL THEN 1 ELSE 0 END ASC,
+         latest.created_at DESC,
+         latest.id DESC,
+         u.created_at DESC,
+         u.id DESC`,
+      [userId, userId, userId, userId, ADMIN_EMAIL]
     );
 
     res.json({ conversations });
@@ -122,10 +128,22 @@ exports.sendMessage = async (req, res) => {
     }
 
     const admin = await getAdminUser();
-    const receiverId = isCurrentUserAdmin(req) ? Number(req.body.receiverId) : admin?.id;
+    const senderIsAdmin = isCurrentUserAdmin(req);
+    const receiverId = senderIsAdmin ? Number(req.body.receiverId) : admin?.id;
 
     if (!receiverId || receiverId === senderId) {
       return res.status(400).json({ message: "Invalid message recipient" });
+    }
+
+    if (senderIsAdmin) {
+      const recipients = await queryAsync(
+        "SELECT id FROM users WHERE id = ? AND email <> ? AND COALESCE(role, 'customer') <> 'admin' LIMIT 1",
+        [receiverId, ADMIN_EMAIL]
+      );
+
+      if (!recipients.length) {
+        return res.status(400).json({ message: "Invalid message recipient" });
+      }
     }
 
     const result = await queryAsync(

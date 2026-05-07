@@ -425,11 +425,12 @@ function Profile() {
                     No orders match this filter.
                   </div>
                 ) : (
-                  <div className="divide-y divide-[#f1e3ca]">
-                    {paginatedOrders.map((order) => (
+                  <div className="space-y-4 bg-[#fffaf2] p-5">
+                    {paginatedOrders.map((order, index) => (
                       <OrderCard
                         key={order.id}
                         order={order}
+                        colorTone={index % 2 === 0 ? "dark" : "brown"}
                         reason={cancelReasonByOrder[order.id] || ""}
                         requesting={requestingCancelId === order.id}
                         onReasonChange={(value) =>
@@ -544,6 +545,7 @@ function ProfileInput({ label, value, onChange, type = "text", required = false,
 
 function OrderCard({
   order,
+  colorTone,
   reason,
   requesting,
   onReasonChange,
@@ -560,9 +562,11 @@ function OrderCard({
     "preparing",
   ].includes(order.status);
   const statusClass = statusStyles[order.status] || "bg-gray-100 text-gray-800 border-gray-200";
+  const borderClass =
+    colorTone === "dark" ? "border-[#5f432c]" : "border-[#8b5e34]";
 
   return (
-    <article className="p-5">
+    <article className={`rounded-2xl border-2 bg-white p-5 shadow-sm ${borderClass}`}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex flex-wrap items-center gap-3">
