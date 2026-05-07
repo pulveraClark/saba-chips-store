@@ -12,8 +12,18 @@ let csrfToken = null;
 let csrfTokenPromise = null;
 
 const unsafeMethods = new Set(["post", "put", "patch", "delete"]);
+const csrfErrorMessage = "Invalid security token. Please refresh and try again.";
 
-const fetchCsrfToken = async () => {
+const clearCsrfToken = () => {
+  csrfToken = null;
+  csrfTokenPromise = null;
+};
+
+const fetchCsrfToken = async ({ force = false } = {}) => {
+  if (force) {
+    clearCsrfToken();
+  }
+
   if (csrfToken) {
     return csrfToken;
   }
@@ -47,9 +57,34 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const originalRequest = error?.config;
+    const method = originalRequest?.method?.toLowerCase();
+    const message = error?.response?.data?.message;
+    const isCsrfError =
+      error?.response?.status === 403 && message === csrfErrorMessage;
+
     if (error?.response?.status === 403) {
-      csrfToken = null;
+      clearCsrfToken();
     }
+
+    if (
+      isCsrfError &&
+      originalRequest &&
+      unsafeMethods.has(method) &&
+      !originalRequest.__csrfRetry
+    ) {
+      originalRequest.__csrfRetry = true;
+
+      try {
+        const token = await fetchCsrfToken({ force: true });
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers["x-csrf-token"] = token;
+        return api(originalRequest);
+      } catch {
+        return Promise.reject(error);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -69,8 +104,12 @@ export const initializeCsrfToken = async () => {
 };
 
 export const logoutUser = async () => {
-  const res = await api.post(`${API}/logout`);
-  return res.data;
+  try {
+    const res = await api.post(`${API}/logout`);
+    return res.data;
+  } finally {
+    clearCsrfToken();
+  }
 };
 
 export const getMe = async () => {

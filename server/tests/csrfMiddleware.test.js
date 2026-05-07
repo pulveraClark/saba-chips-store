@@ -54,3 +54,23 @@ test("getCsrfToken returns session token", () => {
 
   assert.equal(res.body.csrfToken, req.session.csrfToken);
 });
+
+test("getCsrfToken saves the session before responding when available", () => {
+  let saveCalled = false;
+  const req = {
+    session: {
+      save(callback) {
+        saveCalled = true;
+        callback(null);
+      },
+    },
+  };
+  const res = createResponse();
+
+  getCsrfToken(req, res, (err) => {
+    throw err;
+  });
+
+  assert.equal(saveCalled, true);
+  assert.equal(res.body.csrfToken, req.session.csrfToken);
+});

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { registerUser } from "../assets/services/authService.js";
+import { initializeCsrfToken, registerUser } from "../assets/services/authService.js";
 import { useNotification } from "../context/NotificationContext.jsx";
 
 function Register() {
@@ -15,6 +15,12 @@ function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [passwordsMatch, setPasswordsMatch] = useState(true);
+
+  useEffect(() => {
+    void initializeCsrfToken().catch(() => {
+      // ignore prefetch failures; submit will fetch or refresh the token
+    });
+  }, []);
 
   useEffect(() => {
     if (form.confirmPassword) {
