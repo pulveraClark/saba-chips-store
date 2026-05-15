@@ -10,8 +10,11 @@ import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
-
-const deliveryAreas = ["Consolacion", "Liloan", "Compostela", "Other nearby area"];
+import {
+  DELIVERY_AREA_OPTIONS,
+  formatDeliveryFee,
+  getDeliveryFee,
+} from "../utils/deliveryFees.js";
 
 const iconPaths = {
   check: "m5 13 4 4L19 7",
@@ -95,11 +98,12 @@ function Checkout() {
     }
   };
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const freeDelivery = ["Consolacion", "Liloan", "Compostela"].includes(
-    formData.deliveryArea
-  );
+  const deliveryQuote = getDeliveryFee(formData.deliveryArea, itemCount);
+  const deliveryFee = deliveryQuote.available ? deliveryQuote.fee : 0;
+  const total = subtotal + deliveryFee;
+  const deliveryUnavailable = !deliveryQuote.available;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -118,6 +122,15 @@ function Checkout() {
         type: "warning",
         title: "Cart Empty",
         message: "Add products to your cart before checkout.",
+      });
+      return;
+    }
+
+    if (deliveryUnavailable) {
+      notify({
+        type: "warning",
+        title: "Delivery Unavailable",
+        message: deliveryQuote.message,
       });
       return;
     }
@@ -147,7 +160,7 @@ function Checkout() {
       }
 
       const result = await placeOrder(checkoutData);
-      setFinalTotal(result.total || total);
+      setFinalTotal(result.total ?? total);
       setOrderId(result.orderId || "N/A");
 
       await clearCart();
@@ -317,14 +330,21 @@ function Checkout() {
             <div className="rounded-2xl border border-[#ead7b8] bg-[#fff7eb] p-5">
               <div className="mb-3 flex justify-between text-[#6d4c2f]">
                 <span>Subtotal</span>
-                <span className="font-black">PHP {total.toLocaleString()}</span>
+                <span className="font-black">PHP {subtotal.toLocaleString()}</span>
               </div>
               <div className="mb-4 flex justify-between text-[#6d4c2f]">
                 <span>Delivery</span>
                 <span className="font-black">
-                  {freeDelivery ? "Free" : "To be confirmed"}
+                  {deliveryUnavailable
+                    ? "Unavailable"
+                    : formatDeliveryFee(deliveryFee)}
                 </span>
               </div>
+              {deliveryUnavailable && (
+                <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+                  {deliveryQuote.message}
+                </p>
+              )}
               <div className="flex justify-between border-t border-[#ead7b8] pt-4 text-3xl font-black text-[#5f432c]">
                 <span>Total</span>
                 <span>PHP {total.toLocaleString()}</span>
@@ -352,16 +372,21 @@ function Checkout() {
                   }
                   className="input-field"
                 >
-                  {deliveryAreas.map((area) => (
+                  {DELIVERY_AREA_OPTIONS.map((area) => (
                     <option key={area} value={area}>
                       {area}
                     </option>
                   ))}
                 </select>
-                <p className="mt-2 text-sm text-[#7a5331]">
-                  Free delivery currently covers Consolacion, Liloan, and
-                  Compostela.
-                </p>
+                {deliveryUnavailable ? (
+                  <p className="mt-2 text-sm font-bold text-red-700">
+                    {deliveryQuote.message}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-[#7a5331]">
+                    Delivery: {formatDeliveryFee(deliveryFee)}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -575,7 +600,7 @@ function Checkout() {
 
               <button
                 type="submit"
-                disabled={loading || cart.length === 0}
+                disabled={loading || cart.length === 0 || deliveryUnavailable}
                 className="w-full rounded-2xl bg-[#8b5e34] py-5 text-xl font-black text-white transition hover:bg-[#714a28] disabled:opacity-60"
               >
                 {loading

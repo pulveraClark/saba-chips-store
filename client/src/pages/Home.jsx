@@ -325,7 +325,7 @@ function Home() {
 
             <div className="mb-8 grid gap-3 sm:grid-cols-3">
               {[
-                ["Free delivery", "Consolacion, Liloan, Compostela"],
+                ["Free delivery", "4+ packs in Liloan, Compostela, Consolacion, and Mandaue"],
                 ["Current stock", `${availableProducts.length} items available`],
                 ["Fast updates", "Order status and messages"],
               ].map(([label, value]) => (

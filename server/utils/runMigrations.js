@@ -4,6 +4,7 @@ const wishlistReviewsMigration = require("../migrations/003_wishlist_reviews");
 const realStoreWorkflowsMigration = require("../migrations/004_real_store_workflows");
 const chatImagesMigration = require("../migrations/005_chat_images");
 const productionInfrastructureMigration = require("../migrations/006_production_infrastructure");
+const deliveryFeeMigration = require("../migrations/007_delivery_fee");
 const queryAsync = require("./queryAsync");
 
 const migrations = [
@@ -13,6 +14,7 @@ const migrations = [
   realStoreWorkflowsMigration,
   chatImagesMigration,
   productionInfrastructureMigration,
+  deliveryFeeMigration,
 ];
 
 const runMigrations = async () => {
