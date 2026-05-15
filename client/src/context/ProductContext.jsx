@@ -11,8 +11,10 @@ export function ProductProvider({ children }) {
     try {
       const data = await getProducts();
       setProducts(data || []);
+      return data || [];
     } catch (err) {
       console.error("Failed to refresh products:", err);
+      return [];
     }
   };
 
