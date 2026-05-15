@@ -10,12 +10,15 @@ import { getConversations } from "../services/chatService.js";
 import { useAuth } from "../../context/AuthContext.jsx";
 import { useCart } from "../../context/CartContext.jsx";
 import { useNotification } from "../../context/NotificationContext.jsx";
+import { useWishlist } from "../../context/WishlistContext.jsx";
 
 const iconPaths = {
   bell: "M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 0 1-6 0",
   cart: "M6 6h15l-2 8H8L6 3H3m6 15a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm9 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z",
   chevron: "m6 9 6 6 6-6",
   home: "M3 11.5 12 4l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-8.5Z",
+  heart:
+    "M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 22l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z",
   logout: "M10 17l5-5-5-5m5 5H3m7-9h8a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3h-8",
   messages: "M21 12a8 8 0 0 1-8 8H6l-3 2 1.2-4A8 8 0 1 1 21 12Z",
   orders: "M6 3h12l2 5v13H4V8l2-5Zm-2 5h16M9 12h6",
@@ -59,6 +62,7 @@ function Badge({ count, tone = "warm" }) {
 function Navbar() {
   const navigate = useNavigate();
   const { cartCount, refreshCartCount } = useCart();
+  const { wishlistCount } = useWishlist();
   const { user, setUser, loading, isAdmin } = useAuth();
   const { notify } = useNotification();
 
@@ -200,7 +204,7 @@ function Navbar() {
           </Link>
 
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {!isAdmin && (
+            {user && !isAdmin && (
               <NavLink
                 to="/home"
                 onClick={closeMenus}
@@ -306,7 +310,20 @@ function Navbar() {
               </div>
             )}
 
-            {!isAdmin && (
+            {user && !isAdmin && (
+              <Link
+                to="/wishlist"
+                onClick={closeMenus}
+                className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#ead7b8] bg-white text-[#6d4c2f] shadow-sm transition hover:border-[#d6b585] hover:bg-[#fff4df] hover:text-[#5f432c]"
+                title="Wishlist"
+                aria-label="Wishlist"
+              >
+                <Icon name="heart" />
+                <Badge count={wishlistCount} />
+              </Link>
+            )}
+
+            {user && !isAdmin && (
               <Link
                 to="/cart"
                 onClick={closeMenus}

@@ -21,6 +21,7 @@ import AdminTransactions from "./pages/AdminTransactions.jsx";
 import AdminUsers from "./pages/AdminUsers.jsx";
 import Messages from "./pages/Messages.jsx";
 import ProductPage from "./pages/ProductPage.jsx";
+import Wishlist from "./pages/Wishlist.jsx";
 
 function App() {
   return (
@@ -97,6 +98,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Cart />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wishlist"
+            element={
+              <ProtectedRoute>
+                <Wishlist />
               </ProtectedRoute>
             }
           />

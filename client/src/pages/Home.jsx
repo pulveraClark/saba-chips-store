@@ -9,6 +9,7 @@ import {
 import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
+import { useWishlist } from "../context/WishlistContext.jsx";
 import { getTopSellingProducts } from "../assets/services/productService.js";
 import { getMediaUrl } from "../utils/media.js";
 
@@ -82,6 +83,7 @@ function Home() {
   const chatEndRef = useRef(null);
   const { refreshCartCount } = useCart();
   const { products, refreshProducts } = useProducts();
+  const { refreshWishlistCount } = useWishlist();
   const { notify } = useNotification();
 
   useEffect(() => {
@@ -174,6 +176,7 @@ function Home() {
         });
       }
       await refreshProducts();
+      await refreshWishlistCount();
     } catch (err) {
       notify({
         type: "error",

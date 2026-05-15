@@ -3,10 +3,37 @@ import { Link, useParams } from "react-router-dom";
 import { addToCart } from "../assets/services/cartService.js";
 import { getProductById } from "../assets/services/productService.js";
 import { getProductReviews } from "../assets/services/reviewService.js";
+import {
+  addWishlistItem,
+  removeWishlistItem,
+} from "../assets/services/wishlistService.js";
 import { useCart } from "../context/CartContext.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { useProducts } from "../context/ProductContext.jsx";
+import { useWishlist } from "../context/WishlistContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
+
+const iconPaths = {
+  heart:
+    "M20.8 5.6a5.5 5.5 0 0 0-7.8 0L12 6.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 22l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z",
+};
+
+function Icon({ name, className = "h-5 w-5", fill = "none" }) {
+  return (
+    <svg
+      className={className}
+      fill={fill}
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path d={iconPaths[name]} />
+    </svg>
+  );
+}
 
 function ProductPage() {
   const { id } = useParams();
@@ -17,6 +44,7 @@ function ProductPage() {
   const { refreshCartCount } = useCart();
   const { notify } = useNotification();
   const { products, refreshProducts } = useProducts();
+  const { refreshWishlistCount } = useWishlist();
 
   useEffect(() => {
     void loadProduct();
@@ -68,6 +96,41 @@ function ProductPage() {
         type: "error",
         title: "Add to Cart Failed",
         message: err?.response?.data?.message || "Please login to add to cart",
+      });
+    }
+  };
+
+  const handleWishlistToggle = async () => {
+    if (!product) return;
+
+    try {
+      if (product.is_wishlisted) {
+        await removeWishlistItem(product.id);
+        setProduct((prev) =>
+          prev ? { ...prev, is_wishlisted: false } : prev
+        );
+        notify({
+          type: "info",
+          title: "Wishlist updated",
+          message: `${product.name} was removed from your wishlist.`,
+        });
+      } else {
+        await addWishlistItem(product.id);
+        setProduct((prev) => (prev ? { ...prev, is_wishlisted: true } : prev));
+        notify({
+          type: "success",
+          title: "Wishlist updated",
+          message: `${product.name} was saved to your wishlist.`,
+        });
+      }
+
+      await refreshProducts();
+      await refreshWishlistCount();
+    } catch (err) {
+      notify({
+        type: "error",
+        title: "Wishlist Failed",
+        message: err?.response?.data?.message || "Unable to update wishlist.",
       });
     }
   };
@@ -138,6 +201,32 @@ function ProductPage() {
           <section className="space-y-8">
             <div className="overflow-hidden rounded-[2rem] border border-[#ead7b8] bg-white shadow-sm">
               <div className="relative h-[520px] bg-[#f7ecd8]">
+                <button
+                  type="button"
+                  onClick={handleWishlistToggle}
+                  className={`absolute right-4 top-4 z-10 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition ${
+                    product.is_wishlisted
+                      ? "bg-[#b6402e] text-white"
+                      : "bg-white text-[#8b5e34] hover:bg-[#fff4df]"
+                  }`}
+                  title={
+                    product.is_wishlisted
+                      ? "Remove from wishlist"
+                      : "Add to wishlist"
+                  }
+                  aria-label={
+                    product.is_wishlisted
+                      ? "Remove from wishlist"
+                      : "Add to wishlist"
+                  }
+                >
+                  <Icon
+                    name="heart"
+                    className="h-6 w-6"
+                    fill={product.is_wishlisted ? "currentColor" : "none"}
+                  />
+                </button>
+
                 {product.image ? (
                   <img
                     src={getMediaUrl(product.image)}
