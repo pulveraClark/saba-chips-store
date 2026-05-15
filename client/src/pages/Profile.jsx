@@ -10,6 +10,7 @@ import {
 import { sortByNewest } from "../utils/sortByNewest.js";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { getMediaUrl } from "../utils/media.js";
+import { formatDeliveryFee } from "../utils/deliveryFees.js";
 
 const ORDERS_PER_PAGE = 5;
 
@@ -594,9 +595,14 @@ function OrderCard({
             {new Date(order.created_at).toLocaleString()}
           </p>
         </div>
-        <p className="text-2xl font-black text-[#8b5e34]">
-          PHP {Number(order.total).toLocaleString()}
-        </p>
+        <div className="sm:text-right">
+          <p className="text-2xl font-black text-[#8b5e34]">
+            PHP {Number(order.total).toLocaleString()}
+          </p>
+          <p className="text-sm font-bold text-[#6d4c2f]">
+            Delivery: {formatDeliveryFee(order.delivery_fee || 0)}
+          </p>
+        </div>
       </div>
 
       <div className="mt-5 rounded-xl border border-[#f1e3ca] bg-[#fffaf2]">

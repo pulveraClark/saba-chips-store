@@ -269,7 +269,7 @@ function Cart() {
                 </div>
                 <div className="flex justify-between text-[#6d4c2f]">
                   <span>Delivery</span>
-                  <span className="font-black">Calculated at checkout</span>
+                  <span className="font-black">Based on area and quantity</span>
                 </div>
                 <div className="border-t border-[#ead7b8] pt-5">
                   <div className="flex justify-between text-3xl font-black text-[#5f432c]">
@@ -288,8 +288,8 @@ function Cart() {
 
               <div className="mt-6 grid gap-3">
                 {[
-                  ["truck", "Free delivery in Consolacion, Liloan, and Compostela"],
-                  ["shield", "Cash on Delivery & GCAsh available for local orders"],
+                  ["truck", "Free delivery for 4+ packs in Liloan, Compostela, Consolacion, and Mandaue"],
+                  ["shield", "Cash on Delivery & GCash available for local orders"],
                 ].map(([icon, text]) => (
                   <div
                     key={text}

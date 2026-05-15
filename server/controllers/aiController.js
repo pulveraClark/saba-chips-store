@@ -122,7 +122,9 @@ Helpful guidance:
 - For first-time buyers, suggest 2 to 3 products from the sales-based top selling list when available.
 
 Delivery:
-- Free delivery within nearby locations.
+- Free delivery only for 4+ packs in Liloan, Compostela, Consolacion, or Mandaue.
+- Below 4 packs, delivery fees are Liloan PHP 20, Compostela PHP 30, Consolacion PHP 30, and Mandaue PHP 50.
+- Other listed Cebu area fees: Cebu City PHP 60, Talisay PHP 80, Minglanilla PHP 100, Naga PHP 120, Danao PHP 50, Carmen PHP 80, Catmon PHP 120.
 
 Rules:
 - Keep answers short, clear, and friendly.

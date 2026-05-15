@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { getTransactionHistory } from "../assets/services/adminService.js";
 import { sortByNewest } from "../utils/sortByNewest.js";
 import { exportToCsv, exportToExcel } from "../utils/exportData.js";
+import { formatDeliveryFee } from "../utils/deliveryFees.js";
 
 function AdminTransactions() {
   const [transactions, setTransactions] = useState([]);
@@ -35,6 +36,7 @@ function AdminTransactions() {
     { key: "customerName", label: "Customer Name" },
     { key: "customerEmail", label: "Customer Email" },
     { key: "total", label: "Total" },
+    { key: "deliveryFee", label: "Delivery Fee" },
     { key: "status", label: "Status" },
     { key: "paymentMethod", label: "Payment Method" },
     { key: "address", label: "Address" },
@@ -48,6 +50,7 @@ function AdminTransactions() {
     customerName: transaction.customer_name,
     customerEmail: transaction.customer_email,
     total: Number(transaction.total || 0).toFixed(2),
+    deliveryFee: Number(transaction.delivery_fee || 0).toFixed(2),
     status: transaction.status,
     paymentMethod: transaction.payment_method,
     address: transaction.address,
@@ -164,6 +167,9 @@ function AdminTransactions() {
                     <div>
                       <p className="text-sm text-[#7a5331] mb-1">Total</p>
                       <p className="font-black text-[#8b5e34] text-xl">₱{Number(transaction.total).toLocaleString()}</p>
+                      <p className="text-sm font-bold text-[#6d4c2f]">
+                        Delivery: {formatDeliveryFee(transaction.delivery_fee || 0)}
+                      </p>
                     </div>
 
                     <div>

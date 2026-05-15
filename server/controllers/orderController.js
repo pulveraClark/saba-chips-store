@@ -3,6 +3,7 @@ const logActivity = require("../utils/logActivity");
 const queryAsync = require("../utils/queryAsync");
 const { createNotification, notifyAdmin } = require("../utils/realtimeData");
 const notifyLowStockProducts = require("../utils/stockAlerts");
+const { getDeliveryFee } = require("../utils/deliveryFees");
 
 const ORDER_TIMELINE_ACTIONS = [
   "Checkout completed",
@@ -227,10 +228,19 @@ exports.checkout = (req, res) => {
         });
       }
 
-      const total = cartItems.reduce(
+      const subtotal = cartItems.reduce(
         (sum, item) => sum + item.price * item.quantity,
         0
       );
+      const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+      const deliveryQuote = getDeliveryFee(deliveryArea, itemCount);
+
+      if (!deliveryQuote.available) {
+        return res.status(400).json({ message: deliveryQuote.message });
+      }
+
+      const deliveryFee = deliveryQuote.fee;
+      const total = subtotal + deliveryFee;
 
       db.query(
         `INSERT INTO orders (
@@ -241,12 +251,13 @@ exports.checkout = (req, res) => {
            payment_method,
            status,
            delivery_area,
+           delivery_fee,
            order_notes,
            payment_status,
            payment_proof_image,
            payment_reference
          )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           userId,
           total,
@@ -254,7 +265,8 @@ exports.checkout = (req, res) => {
           phone.trim(),
           paymentMethod,
           paymentMethod === "GCash" ? "payment_verification" : "pending",
-          deliveryArea?.trim() || null,
+          deliveryQuote.area,
+          deliveryFee,
           notes?.trim() || null,
           paymentMethod === "GCash" ? "pending_verification" : "cod",
           paymentProofImage,
@@ -361,6 +373,8 @@ exports.checkout = (req, res) => {
                         message: "Order placed successfully!",
                         orderId,
                         total,
+                        subtotal,
+                        deliveryFee,
                       });
                     }
                   );
@@ -386,6 +400,7 @@ exports.getUserOrders = (req, res) => {
     `SELECT
         o.id,
         o.total,
+        o.delivery_fee,
         o.status,
         o.delivery_area,
         o.order_notes,
@@ -437,6 +452,7 @@ exports.getUserOrders = (req, res) => {
           orders[row.id] = {
             id: row.id,
             total: row.total,
+            delivery_fee: row.delivery_fee,
             status: row.status,
             delivery_area: row.delivery_area,
             order_notes: row.order_notes,
@@ -496,6 +512,7 @@ exports.getAllOrders = (req, res) => {
         u.name AS customer_name,
         u.email AS customer_email,
         o.total,
+        o.delivery_fee,
         o.status,
         o.address,
         o.phone,
@@ -544,6 +561,7 @@ exports.getAllOrders = (req, res) => {
             customer_name: row.customer_name,
             customer_email: row.customer_email,
             total: row.total,
+            delivery_fee: row.delivery_fee,
             status: row.status,
             address: row.address,
             phone: row.phone,

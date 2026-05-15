@@ -11,6 +11,7 @@ import OrderTimeline from "../assets/components/OrderTimeline.jsx";
 import { useNotification } from "../context/NotificationContext.jsx";
 import { sortByNewest } from "../utils/sortByNewest.js";
 import { getMediaUrl } from "../utils/media.js";
+import { formatDeliveryFee } from "../utils/deliveryFees.js";
 
 const ORDERS_PER_PAGE = 5;
 
@@ -495,7 +496,11 @@ function AdminOrderCard({
 
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <InfoBlock label="Customer" value={order.customer_name} subValue={order.customer_email} />
-            <InfoBlock label="Total" value={`PHP ${Number(order.total).toLocaleString()}`} />
+            <InfoBlock
+              label="Total"
+              value={`PHP ${Number(order.total).toLocaleString()}`}
+              subValue={`Delivery: ${formatDeliveryFee(order.delivery_fee || 0)}`}
+            />
             <InfoBlock label="Date" value={new Date(order.created_at).toLocaleString()} />
             <InfoBlock label="Payment" value={order.payment_method} />
           </div>
